@@ -1,0 +1,84 @@
+// app/page.js
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import HeaderTest from './components/_test/Header';
+
+export default function HomePage() {
+  const qs = useSearchParams();
+  const lang = (qs.get('lang') || 'English').trim();
+
+  // Only translate the welcome copy — brand title is fixed English.
+  const [t, setT] = useState({
+    welcomeTitle: 'Welcome',
+    welcomeSubtitle: 'This is a multilingual app.',
+  });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const prompt = `Translate the following labels into ${lang}. Return only a raw JSON object:
+{"welcomeTitle":"Welcome","welcomeSubtitle":"This is a multilingual app."}`;
+
+    (async () => {
+      try {
+        if (lang.toLowerCase() === 'english') return; // keep defaults
+        const res = await fetch('/api/gptTranslation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt }),
+          signal: controller.signal,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data?.translation && typeof data.translation === 'object') {
+          setT((prev) => ({ ...prev, ...data.translation }));
+        }
+      } catch {
+        // keep English fallback
+      }
+    })();
+
+    return () => controller.abort();
+  }, [lang]);
+
+  return (
+    <>
+      {/* test header on this page only */}
+      <HeaderTest />
+
+      {/* Right-aligned title + logo, spaced similarly to login layout */}
+      <section className="max-w-[1200px] mx-auto px-4 pt-4">
+        <div className="w-full flex justify-end">
+          <div className="text-right mr-8">
+            {/* Brand title above logo (right side) */}
+            <h1 className="text-4xl md:text-5xl font-extrabold mb-3 text-white drop-shadow-sm">
+              Sovereign Intelligence
+            </h1>
+
+            {/* Keep logo same size as before */}
+            <img
+              src="/images/secure.png"
+              alt="Sovereign Intelligence"
+              width={260}
+              height={260}
+              style={{
+                width: 260,
+                height: 260,
+                objectFit: 'contain',
+                display: 'block',
+                marginLeft: 'auto', // push image to the right
+              }}
+              decoding="async"
+            />
+          </div>
+        </div>
+
+        {/* Welcome copy beneath (left-to-right layout stays) */}
+        <div className="mt-6">
+          <p className="text-2xl font-bold mb-1 text-white">{t.welcomeTitle}</p>
+          <p className="opacity-90 text-white">{t.welcomeSubtitle}</p>
+        </div>
+      </section>
+    </>
+  );
+}

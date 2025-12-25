@@ -1,0 +1,86 @@
+'use client';
+
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+
+export default function Header({ lang: langProp }) {
+  const qs = useSearchParams();
+  const lang = (langProp ?? qs.get('lang') ?? 'English').trim();
+
+  // Translate only the nav labels. Brand stays English.
+  const [t, setT] = useState({
+    home: 'Home',
+    assistant: 'Assistant',
+    dashboard: 'Dashboard',
+    reform: 'Reform Engine',
+  });
+
+  useEffect(() => {
+    const prompt = `Translate the following labels into ${lang}. Return only a raw JSON object:
+{"home":"Home","assistant":"Assistant","dashboard":"Dashboard","reform":"Reform Engine"}`;
+    (async () => {
+      try {
+        const res = await fetch('/api/gptTranslation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data?.translation && typeof data.translation === 'object') {
+          setT((prev) => ({ ...prev, ...data.translation }));
+        }
+      } catch {}
+    })();
+  }, [lang]);
+
+  const q = `?lang=${encodeURIComponent(lang)}`;
+
+  return (
+    <header className="w-full py-4">
+      {/* Brand stays English */}
+      <div className="max-w-[1200px] mx-auto px-4 flex items-center justify-between">
+        <div className="text-xl font-extrabold">Sovereign Intelligence</div>
+
+        {/* Always-unlocked navigation (no aria-disabled, no pointer-events:none) */}
+        <nav
+          className="flex items-center justify-center gap-10 text-white"
+          aria-label="Global navigation"
+        >
+          <Link
+            href={`/${q}`}
+            className="inline-flex items-center gap-2 font-semibold opacity-100 hover:opacity-90 transition-opacity"
+            title={t.home}
+            legacyBehavior>
+            <span className="text-2xl leading-none">🏠</span>
+            {t.home}
+          </Link>
+          <Link
+            href={`/assistant${q}`}
+            className="inline-flex items-center gap-2 font-semibold opacity-100 hover:opacity-90 transition-opacity"
+            title={t.assistant}
+            legacyBehavior>
+            <span className="text-2xl leading-none">🧠</span>
+            {t.assistant}
+          </Link>
+          <Link
+            href={`/dashboard${q}`}
+            className="inline-flex items-center gap-2 font-semibold opacity-100 hover:opacity-90 transition-opacity"
+            title={t.dashboard}
+            legacyBehavior>
+            <span className="text-2xl leading-none">📊</span>
+            {t.dashboard}
+          </Link>
+          <Link
+            href={`/reform${q}`}
+            className="inline-flex items-center gap-2 font-semibold opacity-100 hover:opacity-90 transition-opacity"
+            title={t.reform}
+            legacyBehavior>
+            <span className="text-2xl leading-none">⚙️</span>
+            {t.reform}
+          </Link>
+        </nav>
+      </div>
+    </header>
+  );
+}

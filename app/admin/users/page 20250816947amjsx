@@ -1,0 +1,513 @@
+// app/admin/users/page.jsx
+// users-ui@1.0.18-i18n-cache-rtl
+
+'use client';
+
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+
+/* ----------------------------- i18n utilities ----------------------------- */
+
+const BUILD_VERSION = 'users-ui@1.0.18-i18n-cache-rtl';
+
+const LANG_ALIASES = {
+  ar: 'arabic',
+  arabic: 'arabic',
+  fr: 'french',
+  french: 'french',
+  en: 'english',
+  english: 'english',
+  albanian: 'albanian',
+  sq: 'albanian',
+};
+
+const FALLBACK_EN = {
+  title: 'Users',
+  email: 'Email',
+  name: 'Name',
+  orgRecId: 'Organization Record ID (recXXXX)',
+  roleRecIds: 'Role Record IDs (comma-separated)',
+  addUser: 'Add User',
+  status: 'Status',
+  role: 'Role',
+  actions: 'Actions',
+  couldntLoad: 'Failed to fetch users from Airtable.',
+  deleteUser: 'Delete User',
+  suspendUser: 'Suspend User',
+  assignRole: 'Assign a Role',
+  changeRole: 'Change Role',
+  noUsers: 'No users found',
+  active: 'Active',
+  suspended: 'Suspended',
+  from: 'From',
+  to: 'To',
+  save: 'Save',
+  cancel: 'Cancel',
+  selectRole: 'Select role',
+  activate: 'Activate',
+  loading: 'Loading…',
+  showDebug: 'Show Debug',
+  hideDebug: 'Hide Debug',
+  refresh: 'Refresh',
+};
+
+function normalizeLang(raw) {
+  const key = (raw || '').toLowerCase();
+  return LANG_ALIASES[key] || 'english';
+}
+
+async function fetchI18n(page, lang, signal) {
+  const res = await fetch('/api/gptTranslation', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ page, lang }),
+    signal,
+  });
+  if (!res.ok) throw new Error(`i18n ${page}:${lang} failed ${res.status}`);
+  return res.json();
+}
+
+function useUsersI18n() {
+  const searchParams = useSearchParams();
+  const lang = useMemo(() => normalizeLang(searchParams.get('lang')), [searchParams]);
+  const [t, setT] = useState(FALLBACK_EN);
+  const cacheKey = useMemo(() => `i18n:admin-users:${lang}:${BUILD_VERSION}`, [lang]);
+  const requestId = useRef(0);
+
+  useEffect(() => {
+    let controller = new AbortController();
+    const id = ++requestId.current;
+
+    // Apply cached translation instantly (per language + build version)
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) setT(JSON.parse(cached));
+    } catch {}
+
+    (async () => {
+      try {
+        const data = await fetchI18n('admin-users', lang, controller.signal);
+        if (id === requestId.current) {
+          setT(data);
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+          document.documentElement.dir = lang === 'arabic' ? 'rtl' : 'ltr';
+        }
+      } catch (e) {
+        if (e.name !== 'AbortError') {
+          console.warn('[i18n] fallback to EN:', e.message);
+          if (id === requestId.current) setT(FALLBACK_EN);
+        }
+      }
+    })();
+
+    return () => controller.abort();
+  }, [lang, cacheKey]);
+
+  return { t, lang };
+}
+
+/* --------------------------------- helpers -------------------------------- */
+
+async function getJSON(url) {
+  const r = await fetch(url, { cache: 'no-store' });
+  if (!r.ok) throw new Error(`${url} -> ${r.status}`);
+  return r.json();
+}
+
+async function postUsers(body) {
+  const r = await fetch('/api/admin/users?debug=1', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const raw = await r.text();
+  let json = {};
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    json = { raw };
+  }
+  return { ok: r.ok, status: r.status, json };
+}
+
+function roleLabel(opt) {
+  return opt?.label ?? opt?.name ?? opt?.value ?? '';
+}
+
+/* --------------------------------- modal ---------------------------------- */
+
+function Modal({ open, onClose, children }) {
+  if (!open) return null;
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.55)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 50,
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 560,
+          maxWidth: '90vw',
+          borderRadius: 12,
+          padding: 20,
+          background: '#0f172a',
+          color: '#e5e7eb',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------- main page -------------------------------- */
+
+export default function UsersPage() {
+  const { t, lang } = useUsersI18n();
+
+  const [roles, setRoles] = useState([]); // [{id,label/name/value}]
+  const [users, setUsers] = useState([]); // airtable user rows
+  const [loading, setLoading] = useState(true);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [error, setError] = useState('');
+
+  const [modal, setModal] = useState({
+    open: false,
+    mode: 'assign', // 'assign' | 'change'
+    email: '',
+    fromName: '',
+    toName: '',
+  });
+
+  // Load roles + users
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const rolesRes = await getJSON('/api/admin/roles?options=1&debug=1');
+        const roleOpts = (rolesRes.roles || []).map((r) => ({ id: r.id, label: roleLabel(r) }));
+        if (!cancel) setRoles(roleOpts);
+
+        const usersRes = await getJSON('/api/admin/users?limit=100&debug=1');
+        if (!cancel) setUsers(usersRes.records || []);
+      } catch (e) {
+        if (!cancel) setError(t.couldntLoad || FALLBACK_EN.couldntLoad);
+      } finally {
+        if (!cancel) setLoading(false);
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]); // reload data when language context changes
+
+  function currentRoleNames(rec) {
+    // Try RoleNames (array), fallback to RawRole (string/array)
+    if (Array.isArray(rec?.RoleNames) && rec.RoleNames.length) return rec.RoleNames;
+    if (rec?.RawRole) return Array.isArray(rec.RawRole) ? rec.RawRole : [rec.RawRole];
+    return [];
+  }
+
+  async function doSuspend(rec, active) {
+    const email = rec.Email || rec.email;
+    const { ok, status } = await postUsers({ email, active, _client: 'ui' });
+    if (!ok) alert(`Suspend/Activate failed: ${status}`);
+    await refresh();
+  }
+
+  async function doDelete(rec) {
+    const email = rec.Email || rec.email;
+    if (!confirm(`${t.deleteUser || 'Delete User'}: ${email}?`)) return;
+    const { ok, status } = await postUsers({ email, delete: true, _client: 'ui' });
+    if (!ok) alert(`Delete failed: ${status}`);
+    await refresh();
+  }
+
+  function openAssign(rec) {
+    const email = rec.Email || rec.email;
+    setModal({ open: true, mode: 'assign', email, fromName: '', toName: '' });
+  }
+
+  function openChange(rec) {
+    const email = rec.Email || rec.email;
+    const rolesNow = currentRoleNames(rec);
+    setModal({
+      open: true,
+      mode: 'change',
+      email,
+      fromName: rolesNow[0] || '',
+      toName: '',
+    });
+  }
+
+  async function saveRoleModal() {
+    const { mode, email, fromName, toName } = modal;
+
+    if (mode === 'assign') {
+      if (!toName) return alert(t.selectRole || 'Select role');
+      const { ok, status, json } = await postUsers({
+        email,
+        role: toName,
+        mode: 'assign',
+        _client: 'ui',
+      });
+      if (!ok) {
+        console.error('assign failed:', status, json);
+        alert(`Assign failed: ${status}`);
+      }
+    } else if (mode === 'change') {
+      if (!fromName || !toName) return alert(t.selectRole || 'Select role');
+      // pass the role record id if we can find it
+      const roleOpt = roles.find((r) => r.label === toName);
+      const roleRecId = roleOpt?.id || undefined;
+      const { ok, status, json } = await postUsers({
+        email,
+        from: fromName,
+        role: toName,
+        roleRecId,
+        mode: 'change',
+        _client: 'ui',
+      });
+      if (!ok) {
+        console.error('change failed:', status, json);
+        alert(`Change failed: ${status}`);
+      }
+    }
+    setModal((m) => ({ ...m, open: false }));
+    await refresh();
+  }
+
+  async function refresh() {
+    try {
+      const usersRes = await getJSON('/api/admin/users?limit=100&debug=1');
+      setUsers(usersRes.records || []);
+    } catch (e) {
+      setError(t.couldntLoad || FALLBACK_EN.couldntLoad);
+    }
+  }
+
+  return (
+    <div style={{ padding: 16 }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <h1 style={{ margin: 0 }}>{t.title}</h1>
+        <span style={{ opacity: 0.6, fontSize: 12 }}>{BUILD_VERSION}</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <button onClick={() => setDebugOpen((s) => !s)}>
+            {debugOpen ? t.hideDebug : t.showDebug}
+          </button>
+          <button onClick={refresh}>{t.refresh}</button>
+        </div>
+      </header>
+
+      {error && (
+        <div
+          style={{
+            margin: '12px 0',
+            padding: 12,
+            borderRadius: 8,
+            background: '#7f1d1d',
+            color: '#fff',
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ padding: 24 }}>{t.loading}</div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>{t.name}</th>
+                <th style={thStyle}>{t.email}</th>
+                <th style={thStyle}>{t.status}</th>
+                <th style={thStyle}>{t.role}</th>
+                <th style={thStyle}>{t.actions}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(users || []).length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ padding: 16, opacity: 0.7 }}>
+                    {t.noUsers}
+                  </td>
+                </tr>
+              )}
+              {(users || []).map((rec) => {
+                const email = rec.Email || rec.email || '';
+                const status = rec.Suspended ? t.suspended : t.active;
+                const rnames = currentRoleNames(rec);
+                return (
+                  <tr key={rec.id} style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                    <td style={tdStyle}>{rec.Name || rec.name || ''}</td>
+                    <td style={tdStyle}>{email}</td>
+                    <td style={tdStyle}>{status}</td>
+                    <td style={tdStyle}>{rnames.join(', ')}</td>
+                    <td style={{ ...tdStyle, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() =>
+                          doSuspend(rec, rec.Suspended ? true : false ? true : undefined)
+                        }
+                        style={btnYellow}
+                      >
+                        {t.suspendUser}
+                      </button>
+                      <button onClick={() => openAssign(rec)} style={btnBlue}>
+                        {t.assignRole}
+                      </button>
+                      <button onClick={() => openChange(rec)} style={btnBlue}>
+                        {t.changeRole}
+                      </button>
+                      <button onClick={() => doDelete(rec)} style={btnRed}>
+                        {t.deleteUser}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {debugOpen && (
+        <pre
+          style={{
+            marginTop: 12,
+            padding: 12,
+            background: '#111827',
+            color: '#e5e7eb',
+            borderRadius: 8,
+            overflow: 'auto',
+          }}
+        >
+          {JSON.stringify(
+            { version: BUILD_VERSION, lang, roles, usersCount: users?.length },
+            null,
+            2,
+          )}
+        </pre>
+      )}
+
+      <Modal open={modal.open} onClose={() => setModal((m) => ({ ...m, open: false }))}>
+        <h3 style={{ marginTop: 0, marginBottom: 12 }}>
+          {modal.mode === 'assign' ? t.assignRole || 'Assign Role' : t.changeRole || 'Change Role'}
+        </h3>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div>
+            <label style={labelStyle}>Email</label>
+            <div style={pill}>{modal.email}</div>
+          </div>
+
+          {modal.mode === 'change' && (
+            <div>
+              <label style={labelStyle}>{t.from}</label>
+              <select
+                value={modal.fromName}
+                onChange={(e) => setModal((m) => ({ ...m, fromName: e.target.value }))}
+                style={selectStyle}
+              >
+                <option value="">{t.selectRole}</option>
+                {/* From list comes from the user's current roles; keep as-is */}
+                {/* If empty, still allow select to be empty */}
+                {Array.from(
+                  new Set(users.find((u) => (u.Email || u.email) === modal.email)?.RoleNames || []),
+                )
+                  .concat([])
+                  .map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label style={labelStyle}>
+              {modal.mode === 'assign' ? t.assignRole || 'Assign Role' : t.to || 'To'}
+            </label>
+            <select
+              value={modal.toName}
+              onChange={(e) => setModal((m) => ({ ...m, toName: e.target.value }))}
+              style={selectStyle}
+            >
+              <option value="">{t.selectRole}</option>
+              {roles.map((r) => (
+                <option key={r.id} value={r.label}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
+            <button onClick={() => setModal((m) => ({ ...m, open: false }))}>{t.cancel}</button>
+            <button onClick={saveRoleModal} style={btnGreen}>
+              {t.save}
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+/* --------------------------------- styles --------------------------------- */
+
+const thStyle = {
+  textAlign: 'left',
+  padding: '10px 8px',
+  fontWeight: 600,
+  borderBottom: '1px solid rgba(255,255,255,0.12)',
+};
+
+const tdStyle = {
+  padding: '10px 8px',
+  verticalAlign: 'top',
+};
+
+const labelStyle = { display: 'block', fontSize: 12, opacity: 0.8, marginBottom: 6 };
+
+const selectStyle = {
+  width: '100%',
+  padding: '10px 12px',
+  borderRadius: 10,
+  background: '#111827',
+  color: '#e5e7eb',
+  border: '1px solid rgba(255,255,255,0.12)',
+};
+
+const pill = {
+  display: 'inline-block',
+  padding: '8px 12px',
+  borderRadius: 999,
+  background: '#111827',
+  border: '1px solid rgba(255,255,255,0.12)',
+};
+
+const btnBase = {
+  padding: '8px 12px',
+  borderRadius: 999,
+  border: 'none',
+  cursor: 'pointer',
+};
+
+const btnBlue = { ...btnBase, background: '#1d4ed8', color: '#fff' };
+const btnYellow = { ...btnBase, background: '#f59e0b', color: '#111827' };
+const btnRed = { ...btnBase, background: '#dc2626', color: '#fff' };
+const btnGreen = { ...btnBase, background: '#16a34a', color: '#fff' };

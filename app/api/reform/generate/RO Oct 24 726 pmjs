@@ -1,0 +1,691 @@
+// ============================================================================
+// SOVEREIGN INTELLIGENCE — Generate Reform Report (Oct 24 surgical base)
+// Restores: 20k word floor, title page+logo, table titles (AI), predictive charts,
+// risk heatmap, Appendix, predictive graph descriptions (outside canvas),
+// numbering-friendly structure. No TS. Temperature fixed at 1.
+// ============================================================================
+
+import { NextResponse } from 'next/server';
+import { OpenAI } from 'openai';
+
+// Keep explicit .js extensions to avoid ESM resolution issues
+import buildReformReportHTML from '@/lib/reportTemplate.js';
+import { planDiagramHTML } from '@/lib/implPlan.js';
+import { lineChartHTML, barChartHTML, heatmapHTML, GRAPH_CSS } from '@/lib/reportGraphs.js';
+
+
+
+// (Historical imports retained as comment)
+// import buildReformReportHTML from '@/lib/reportTemplate' // (no ext) — legacy
+// import { planDiagramHTML } from '@/lib/implPlan'; // legacy
+
+void [lineChartHTML, barChartHTML, heatmapHTML, GRAPH_CSS]; // keep tree-shaking honest
+
+const TAG = '[SR:REFORM]';
+const MODEL = process.env.OPENAI_MODEL || 'gpt-5-nano-2025-08-07';
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// -------------------- Util helpers --------------------
+const wc = (html = '') =>
+  String(html)
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean).length;
+
+const clamp = (n, min, max) => Math.min(max, Math.max(min, Number(n) || 0));
+
+const today = () =>
+  new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: '2-digit' });
+
+function currencyUnitForCountry(country = '') {
+  const c = String(country).toLowerCase();
+  if (c.includes('canada') || c.includes(' ca')) return 'CAD';
+  if (c.includes('united states') || c.includes('usa') || c.includes(' us')) return 'USD';
+  if (c.includes('united kingdom') || c.includes('uk') || c.includes('england')) return 'GBP';
+  if (c.includes('india')) return 'INR';
+  if (c.includes('euro') || c.includes('germany') || c.includes('france')) return 'EUR';
+  return 'CAD'; // default for this deployment
+}
+
+const HAS_VIZ_RE = /(data-chart|data-widget\s*=\s*["']benchmark["']|data-heatmap)/i;
+const hasViz = (html = '') => HAS_VIZ_RE.test(String(html || ''));
+
+function safeParseAttrJSON(s = '') {
+  try {
+    return JSON.parse(String(s).replace(/&quot;/g, '"').replace(/&amp;/g, '&'));
+  } catch { return null; }
+}
+
+function toAttrJSON(obj) {
+  try {
+    return JSON.stringify(obj).replace(/"/g, '&quot;');
+  } catch { return '{}'; }
+}
+
+function parseVizMeta(frag = '') {
+  const out = { kind: '', type: '', title: '', xTitle: '', yTitle: '', labelsLen: 0, dataLen: 0 };
+  if (!frag) return out;
+
+  const chart = frag.match(/<figure[^>]*data-chart=["']([\s\S]*?)["'][^>]*>/i);
+  if (chart) {
+    out.kind = 'chart';
+    const json = safeParseAttrJSON(chart[1]) || {};
+    out.type = String(json?.type || '');
+    out.title = String(json?.title || '');
+    out.xTitle = String(json?.xTitle || '');
+    out.yTitle = String(json?.yTitle || '');
+    out.labelsLen = Array.isArray(json?.labels) ? json.labels.length : 0;
+    out.dataLen = Array.isArray(json?.datasets?.[0]?.data) ? json.datasets[0].data.length : 0;
+    return out;
+  }
+
+  const bench = frag.match(/<figure[^>]*data-widget=["']benchmark["'][^>]*data-spec=["']([\s\S]*?)["']/i);
+  if (bench) {
+    out.kind = 'benchmark';
+    const json = safeParseAttrJSON(bench[1]) || {};
+    out.type = 'benchmark';
+    out.title = String(json?.title || '');
+    out.xTitle = 'Measure';
+    out.yTitle = String(json?.yTitle || '');
+    out.labelsLen = 2;
+    out.dataLen = 2;
+    return out;
+  }
+
+  const heat = frag.match(/<div[^>]*data-heatmap=["']([\s\S]*?)["'][^>]*>/i);
+  if (heat) {
+    out.kind = 'heatmap';
+    const json = safeParseAttrJSON(heat[1]) || {};
+    out.type = 'heatmap';
+    out.title = String(json?.title || '');
+    out.xTitle = 'Columns';
+    out.yTitle = 'Rows';
+    out.labelsLen = Array.isArray(json?.cols) ? json.cols.length : 0;
+    out.dataLen = Array.isArray(json?.data) ? json.data.length : 0;
+    return out;
+  }
+
+  return out;
+}
+
+function collectExistingVizMeta(html = '') {
+  const titles = new Set();
+  const sigs = new Set();
+  const all =
+    String(html || '').match(
+      /(<figure[^>]*data-chart=['"][\s\S]*?<\/figure>)|(<figure[^>]*data-widget=['"]benchmark['"][\s\S]*?<\/figure>)|(<div[^>]*data-heatmap=['"][\s\S]*?<\/div>)/gi,
+    ) || [];
+  for (const frag of all) {
+    const m = parseVizMeta(frag);
+    const t = (m.title || '').trim().toLowerCase() || '(untitled)';
+    titles.add(t);
+    sigs.add(`${m.kind}|${t}`);
+  }
+  return { titles, sigs };
+}
+
+// -------------------- Section sizing (20,000 words total target) --------------------
+// Keep floors explicit; these sum ~20,000. (Exec+Current+Financials+KPIs+Impl+Ops+Risk+ROI+Conclusion)
+const SECTION_FLOORS = {
+  exec:        2600,
+  current:     2700,
+  financials:  2700,
+  kpis:        2400,
+  impl:        2400,   // Implementation Plan
+  ops:         2400,   // Operating Model
+  risk:        2000,
+  roi:         1900,   // ROI & Next Steps
+  conclusion:  1400
+};
+// The generator clamps to exactly this sum (not user input) to ensure 20k-ish output
+const TOTAL_FLOOR = Object.values(SECTION_FLOORS).reduce((a,b)=>a+b,0);
+
+// -------------------- Prompts --------------------
+const NO_VISUALS_GUIDANCE = `
+Do NOT include any <figure> charts, <div data-heatmap>, or benchmark widgets in this section.
+If numeric evidence is helpful, use ONE compact <table class="report-table"> per section (exec summary excluded).
+`;
+
+function sectionPrompt(section, canon, minWords) {
+  return `
+Audience: C-suite. Tone: concise, evidence-driven. No run-on sentences.
+Organization: ${canon.orgName} (${canon.country}). Time frame: ${canon.timeFrame}.
+Keep paragraphs 3–4 sentences.
+
+When you include a table, ALWAYS render it as <table class="report-table">…</table>.
+${NO_VISUALS_GUIDANCE}
+
+Section: ${section}
+Hard minimum words: ${minWords}. Avoid filler. No appendix here.
+`.trim();
+}
+
+function expandPrompt(section, canon, remainingWords) {
+  return `
+Continue the SAME "${section}" section for ${canon.orgName} with NEW content only.
+3–4 paragraphs (max 4 sentences each).
+Target at least ${remainingWords} words. Output valid HTML only.
+Use <table class="report-table"> for any tables. NO charts/heatmaps here.
+`.trim();
+}
+
+// -------------------- Generation (temperature=1) --------------------
+async function genSectionFirstPass(section, canon, floor) {
+  console.log(TAG, 'section.start', section, { floor });
+  const res = await openai.chat.completions.create({
+    model: MODEL,
+    temperature: 1,
+    messages: [
+      { role: 'system', content: 'You are a senior consultant. Return clean HTML fragments only.' },
+      { role: 'user', content: sectionPrompt(section, canon, floor) }
+    ]
+  });
+  let html = res.choices?.[0]?.message?.content?.trim() || '';
+  // sanitize non-predictive visuals from the LLM text
+  html = String(html)
+    .replace(/<figure[^>]*data-widget=['"]benchmark['"][\s\S]*?<\/figure>/gi, '')
+    .replace(/<div[^>]*data-heatmap=['"][\s\S]*?<\/div>/gi, '')
+    .replace(/<figure[^>]*data-chart=['"][\s\S]*?<\/figure>/gi, '');
+  console.log(TAG, 'section.firstPass', section, wc(html));
+  return html;
+}
+
+async function topUpSection(section, canon, currentHTML, floor) {
+  let html = currentHTML || '';
+  let words = wc(html);
+  let guard = 0;
+  while (words < floor && guard < 8) {
+    const remaining = Math.max(200, floor - words);
+    const res = await openai.chat.completions.create({
+      model: MODEL,
+      temperature: 1,
+      messages: [
+        { role: 'system', content: 'Extend with NEW, non-duplicative content. Return HTML only.' },
+        { role: 'user', content: expandPrompt(section, canon, remaining) }
+      ]
+    });
+    const add = res.choices?.[0]?.message?.content?.trim() || '';
+    // sanitize visuals produced in text
+    html += '\n' + String(add)
+      .replace(/<figure[^>]*data-widget=['"]benchmark['"][\s\S]*?<\/figure>/gi, '')
+      .replace(/<div[^>]*data-heatmap=['"][\s\S]*?<\/div>/gi, '')
+      .replace(/<figure[^>]*data-chart=['"][\s\S]*?<\/figure>/gi, '');
+    words = wc(html);
+    guard += 1;
+    console.log(TAG, 'section.topUp', section, { words, floor, pass: guard });
+  }
+  return html;
+}
+
+// -------------------- Predictive visuals --------------------
+function renderCandidateToFragment(section, c) {
+  if (String(c.type || '').toLowerCase() === 'heatmap' && section === 'risk') {
+    const spec = {
+      title: c.title,
+      rows: Array.isArray(c.rows) ? c.rows.slice(0, 12) : ['R1','R2','R3','R4','R5'],
+      cols: Array.isArray(c.cols) ? c.cols.slice(0, 12) : ['C1','C2','C3','C4','C5'],
+      data: Array.isArray(c.data) ? c.data : [],
+    };
+    return `<div data-heatmap="${toAttrJSON(spec)}" data-origin="predictive"></div>`;
+  }
+  const spec = {
+    type: String(c.type || 'line').toLowerCase(),
+    title: c.title,
+    xTitle: c.xTitle,
+    yTitle: c.yTitle,
+    labels: c.labels,
+    datasets: (c.datasets || []).map(ds => ({ label: ds.label || 'Predicted', data: ds.data || [] }))
+  };
+  return `<figure data-chart="${toAttrJSON(spec)}" data-origin="predictive"></figure>`;
+}
+
+function isGraphCandidateValid(section, c) {
+  if (!c) return false;
+  const type = String(c.type || '').toLowerCase();
+  if (!['line','bar','pie','doughnut','heatmap'].includes(type)) return false;
+  if (type === 'heatmap' && section !== 'risk') return false;
+
+  const titleOk = String(c.title || '').trim().length > 0 && !/^chart$/i.test(c.title || '');
+  const xOk = String(c.xTitle || '').trim().length > 0;
+  const yOk = String(c.yTitle || '').trim().length > 0;
+  const labels = Array.isArray(c.labels) ? c.labels : [];
+  const data = Array.isArray(c.datasets?.[0]?.data) ? c.datasets[0].data : [];
+  const lenOk = labels.length > 0 && labels.length === data.length;
+  const nums = data.map(Number).filter(n => Number.isFinite(n));
+  const dataOk = nums.length === data.length && !nums.every(n => n === 0);
+
+  return titleOk && xOk && yOk && lenOk && dataOk;
+}
+
+async function aiSuggestKeywords(section, canon, sectionHtml) {
+  const prompt = [
+    `Analyze the "${section}" section and propose up to 120 SHORT predictive-analytics keywords/phrases,`,
+    'ordered from most to least promising. Exclude generic terms ("chart","graph").',
+    'Return JSON array of strings only.',
+    '',
+    '--- CANON ---',
+    `Org:${canon.orgName}  Country:${canon.country}  Time frame:${canon.timeFrame}`,
+    '--- SECTION HTML ---',
+    sectionHtml
+  ].join('\n');
+
+  try {
+    const r = await openai.chat.completions.create({
+      model: MODEL,
+      temperature: 1,
+      messages: [
+        { role: 'system', content: 'Return JSON array of strings only.' },
+        { role: 'user', content: prompt }
+      ]
+    });
+    const txt = r.choices?.[0]?.message?.content || '[]';
+    let arr; try { arr = JSON.parse(txt); } catch { arr = []; }
+    const set = new Set();
+    for (const k of Array.isArray(arr) ? arr : []) {
+      const s = String(k || '').trim();
+      if (!s) continue;
+      if (/^(trend|chart|graph)$/i.test(s)) continue;
+      set.add(s.toLowerCase());
+    }
+    const keywords = Array.from(set);
+    console.log(TAG, 'predictive.keywords', section, { count: keywords.length, sample: keywords.slice(0,8) });
+    return keywords;
+  } catch (e) {
+    console.log(TAG, 'predictive.keywords.error', section, String(e?.message || e));
+    return [];
+  }
+}
+
+async function aiBatchPredictiveCandidates(section, canon, sectionHtml, keywords) {
+  const yCur = currencyUnitForCountry(canon.country);
+  const tf = String(canon.timeFrame || '').toLowerCase();
+  const years = /year/.test(tf);
+  const labels = years ? ['Y1','Y2','Y3'] : ['M1','M2','M3','M4','M5','M6'];
+
+  const user =
+`From KEYWORDS, choose up to 8 predictive analytics for "${section}".
+Return one JSON candidate per item (no tables/benchmarks):
+- "keyword"
+- "type" in ["line","bar","pie","doughnut"${section==='risk'?', "heatmap"':''}]
+- "title" (non-empty)
+- "xTitle" ("${years ? 'Years' : 'Months'}")
+- "yTitle" ("${section==='financials' || section==='exec' ? yCur : section==='kpis' || section==='roi' || section==='current' ? 'Percent' : 'Index'}")
+- "labels": ${JSON.stringify(labels)}
+- "datasets":[{"label":"Predicted","data":[numbers matching labels length]}]
+For RISK you may also return {"type":"heatmap","title":"...","rows":[...],"cols":[...],"data":[[...],[...]]}.
+Return STRICT JSON: {"candidates":[{...}]}.
+
+KEYWORDS:
+${JSON.stringify(keywords).slice(0,6000)}
+
+CANON:
+${JSON.stringify({ country: canon.country, currency: yCur, timeFrame: canon.timeFrame })}
+
+SECTION HTML:
+${sectionHtml}`;
+
+  try {
+    const res = await openai.chat.completions.create({
+      model: MODEL,
+      temperature: 1,
+      messages: [
+        { role: 'system', content: 'Return pure JSON with property "candidates" only.' },
+        { role: 'user', content: user }
+      ]
+    });
+    let obj = {};
+    try { obj = JSON.parse(res.choices?.[0]?.message?.content || '{}'); } catch { obj = {}; }
+    const candidates = Array.isArray(obj.candidates) ? obj.candidates : [];
+    console.log(TAG, 'predictive.batch', section, { received: candidates.length });
+    return candidates;
+  } catch (e) {
+    console.log(TAG, 'predictive.batch.error', section, String(e?.message || e));
+    return [];
+  }
+}
+
+async function predictiveDescription(canon, meta) {
+  try {
+    const res = await openai.chat.completions.create({
+      model: MODEL,
+      temperature: 1,
+      messages: [
+        { role: 'system', content: 'Return exactly one <p class="chart-note">…</p> with 2–3 concise executive sentences.' },
+        { role: 'user', content: `Write an executive note for "${meta.title}". Define ${meta.xTitle||'X-axis'} and ${meta.yTitle||'Y-axis'}, summarize directionality or hotspots, and state one decision implication for ${canon.orgName}.` }
+      ]
+    });
+    const p = (res.choices?.[0]?.message?.content || '').trim();
+    return /^<p[^>]*class=["']chart-note["']/.test(p) ? p : `<p class="chart-note">${p}</p>`;
+  } catch {
+    const t = meta.title || 'This visual';
+    const x = meta.xTitle || 'X-axis';
+    const y = meta.yTitle || 'Y-axis';
+    return `<p class="chart-note">${t} measures performance with ${x} on the horizontal and ${y} on the vertical axis. The pattern highlights priority actions for the next quarter.</p>`;
+  }
+}
+
+async function choosePredictiveFragment(section, canon, sectionHtml, existingSigSet) {
+  const keywords = await aiSuggestKeywords(section, canon, sectionHtml);
+  if (!keywords.length) return '';
+
+  const batch = await aiBatchPredictiveCandidates(section, canon, sectionHtml, keywords);
+  if (!batch.length) return '';
+
+  for (let i = 0; i < batch.length; i++) {
+    const c = batch[i];
+    if (!isGraphCandidateValid(section, c)) continue;
+    const frag = renderCandidateToFragment(section, c);
+    const meta = parseVizMeta(frag);
+    const sig = `${meta.kind}|${String(meta.title || '').trim().toLowerCase()}`;
+    if (existingSigSet.has(sig)) continue;
+
+    const desc = await predictiveDescription(canon, meta);
+    console.log(TAG, 'predictive.select', section, {
+      idx: i+1, keyword: c.keyword || '', type: meta.type, title: meta.title
+    });
+    return frag + '\n' + desc;
+  }
+  console.log(TAG, 'predictive.fail.exhausted', section, { tried: batch.length });
+  return '';
+}
+
+// -------------------- Table Title Injection (Oct-22 style, themed) --------------------
+// Black background + bold white text; injects above each <table class="report-table"> if missing
+function injectTableTitles(html, canon) {
+  try {
+    const src = String(html || '');
+    const re = /<table\b[^>]*class=(["'])(?:(?:(?!\1).)*\s)?report-table(?:(?:(?!\1).)*)\1[^>]*>[\s\S]*?<\/table>/gi;
+    let m, out = '', cursor = 0;
+    while ((m = re.exec(src)) !== null) {
+      const start = m.index;
+      const tableStr = m[0];
+      const end = re.lastIndex;
+
+      // emit preceding
+      out += src.slice(cursor, start);
+
+      // is there already a table-title directly above?
+      const pre = src.slice(Math.max(0, start - 400), start);
+      if (/\btable-title\b/i.test(pre)) {
+        out += tableStr;
+        cursor = end;
+        continue;
+      }
+
+      // derive quick deterministic title from thead first row; fallback
+      let title = '(Untitled Table)';
+      try {
+        const thead = (tableStr.match(/<thead[\s\S]*?<\/thead>/i) || [''])[0];
+        const firstRow = thead ? (thead.match(/<tr[\s\S]*?<\/tr>/i) || [''])[0] : (tableStr.match(/<tr[\s\S]*?<\/tr>/i) || [''])[0];
+        if (firstRow) {
+          const cells = Array.from(firstRow.matchAll(/<(th|td)\b[^>]*>([\s\S]*?)<\/\1>/gi))
+            .map(mm => mm[2].replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim())
+            .filter(Boolean);
+          if (cells.length) title = cells.join(' • ');
+        }
+      } catch {}
+
+      // sanitize
+      title = String(title).replace(/<[^>]*>/g,'').trim() || '(Untitled Table)';
+
+      // theme: black bg + bold white text
+      const titleDiv =
+        `<div class="table-title" style="font-weight:700;color:#fff;background:#000;padding:.35rem .5rem;margin:.35rem 0 .4rem;border-radius:2px;">${title}</div>`;
+
+      out += titleDiv + '\n' + tableStr;
+      cursor = end;
+
+      console.log(TAG, 'table.title.injected', { title, ai:false });
+    }
+    out += src.slice(cursor);
+    return out;
+  } catch (e) {
+    console.log(TAG, 'injectTableTitles.error', String(e?.message || e));
+    return html;
+  }
+}
+
+// -------------------- Legacy note commenter (kept; non-destructive) --------------------
+function commentOutLegacyVisualNotes(html) {
+  try {
+    let out = String(html || '');
+    let count = 0;
+    const re = /((?:<figure[^>]*data-chart=['"][\s\S]*?<\/figure>)|(?:<figure[^>]*data-widget=['"]benchmark['"][\s\S]*?<\/figure>)|(?:<div[^>]*data-heatmap=['"][\s\S]*?<\/div>))(\s*)(<(?!!--)p\b(?![^>]*class=["']chart-note["'])[\s\S]*?<\/p>)/i;
+    let guard = 0;
+    while (re.test(out) && guard < 2000) {
+      out = out.replace(re, (m, vis, ws, para) => {
+        count += 1;
+        return `${vis}${ws}<!-- [LEGACY NOTE COMMENTED]\n${para}\n-->`;
+      });
+      guard += 1;
+    }
+    if (count) console.log(TAG, 'chart.notes.legacy.commented', { count });
+    return out;
+  } catch (e) {
+    console.log(TAG, 'chart.notes.legacy.error', String(e?.message || e));
+    return html;
+  }
+}
+
+// -------------------- Universal description injector (fallback for standard visuals) --------------------
+function injectStdChartNotes(html, canon) {
+  try {
+    const src = String(html || '');
+    const re = /(<figure[^>]*data-chart=['"][\s\S]*?<\/figure>)/gi;
+
+    let m, out = '', cursor = 0, injected = 0;
+    while ((m = re.exec(src)) !== null) {
+      const start = m.index;
+      const frag  = m[0];
+      const end   = re.lastIndex;
+
+      out += src.slice(cursor, start) + frag;
+
+      // skip predictive visuals; they already get AI notes elsewhere
+      if (/\bdata-origin=["']predictive["']/.test(frag)) {
+        cursor = end;
+        continue;
+      }
+
+      // if a chart-note already follows (allow whitespace/comments), skip
+      const tail = src.slice(end, end + 800);
+      const hasNote = /^(?:\s|<!\-\-[\s\S]*?\-\->)*<p\b[^>]*class=["']chart-note["'][^>]*>[\s\S]*?<\/p>/i.test(tail);
+      if (hasNote) { cursor = end; continue; }
+
+      const meta = parseVizMeta(frag);
+      const title = (meta.title || 'Performance trend').trim();
+      const x = (meta.xTitle || 'X-axis').trim();
+      const y = (meta.yTitle || 'Y-axis').trim();
+
+      // quick direction guess
+      let direction = 'a stable pattern';
+      try {
+        const specMatch = frag.match(/data-chart=['"]([\s\S]*?)['"]/i);
+        if (specMatch) {
+          const obj = safeParseAttrJSON(specMatch[1]) || {};
+          const arr = Array.isArray(obj?.datasets?.[0]?.data) ? obj.datasets[0].data : [];
+          if (arr.length >= 2) {
+            const first = Number(arr[0]), last = Number(arr[arr.length - 1]);
+            if (isFinite(first) && isFinite(last)) {
+              direction = last > first ? 'an upward trajectory' : last < first ? 'a downward trajectory' : 'a flat trend';
+            }
+          }
+        }
+      } catch {}
+
+      const note =
+        `<p class="chart-note">${title} charts ${y} against ${x}. ` +
+        `The series indicates ${direction}; prioritize actions that reinforce strengths and mitigate variance next quarter.</p>`;
+
+      out += '\n' + note + '\n';
+      injected += 1;
+      cursor = end;
+    }
+
+    out += src.slice(cursor);
+    if (injected > 0) console.log(TAG, 'std.chart.notes.injected', { injected });
+    return out;
+  } catch (e) {
+    console.log(TAG, 'std.chart.notes.error', String(e?.message || e));
+    return html;
+  }
+}
+
+// -------------------- Appendices (Oct-10 style; safe) --------------------
+function buildAppendicesHTML(canon, sections) {
+  try {
+    const counts = {};
+    const keys = Object.keys(sections || {});
+    for (const k of keys) {
+      const html = String(sections[k] || '');
+      counts[k] = {
+        charts: (html.match(/data-chart=/g) || []).length,
+        heatmaps: (html.match(/data-heatmap=/g) || []).length,
+        benchmarks: (html.match(/data-widget=['"]benchmark['"]/g) || []).length,
+        tables: (html.match(/<table\b/gi) || []).length,
+        words: wc(html)
+      };
+    }
+
+    const rows = keys.map(k => `
+      <tr>
+        <td>${k}</td>
+        <td>${counts[k].words}</td>
+        <td>${counts[k].charts}</td>
+        <td>${counts[k].heatmaps}</td>
+        <td>${counts[k].benchmarks}</td>
+        <td>${counts[k].tables}</td>
+      </tr>
+    `).join('');
+
+    return `
+      <section id="appendices">
+        <h2>Appendix</h2>
+        <h3>Generation Diagnostics</h3>
+        <table class="report-table">
+          <thead>
+            <tr><th>Section</th><th>Words</th><th>Charts</th><th>Heatmaps</th><th>Benchmarks</th><th>Tables</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </section>
+    `.trim();
+  } catch (e) {
+    console.log(TAG, 'appendix.safeFallback.error', String(e?.message || e));
+    return '<section id="appendices"><h2>Appendix</h2><p>Appendix generation failed gracefully.</p></section>';
+  }
+}
+
+// -------------------- Main handler --------------------
+export async function POST(req) {
+  const input = await req.json();
+
+  // Canon assembled here (logo path uses /public)
+  const canon = {
+    lang: input.lang || 'English',
+    orgName: input.orgName || 'Client',
+    country: input.country || 'Canada',
+    tier: input.tier || 'Tier 2 – National',
+    companySize: input.companySize || '5,001–10,000',
+    timeFrame: input.timeFrame || '3 years',
+    strategicGoal: input.strategicGoal || '',
+    desiredOutcome: input.desiredOutcome || '',
+    preparedFor: input.preparedFor || '',
+    preparedBy: input.preparedBy || '',
+    logoUrl: input.logoUrl || '/images/secure.png',
+    reportDate: today()
+  };
+
+  // Force the TOTAL_FLOOR (~20k) regardless of user minWords
+  canon.minWords = TOTAL_FLOOR;
+
+  console.log(TAG, 'generate.start', { org: canon.orgName, model: MODEL, tf: canon.timeFrame });
+
+  const order = ['exec','current','financials','kpis','impl','ops','risk','roi'];
+  const sections = {};
+
+  for (const key of order) {
+    const floor = SECTION_FLOORS[key] || 2000;
+    let html = await genSectionFirstPass(key, canon, floor);
+    html = await topUpSection(key, canon, html, floor);
+
+    const { sigs: existingSigs } = collectExistingVizMeta(html);
+    console.log(TAG, 'section.viz.precheck', key, { has: hasViz(html), words: wc(html) });
+
+    // Predictive visual per specified sections (heatmap allowed in risk)
+    try {
+      const predFrag = await choosePredictiveFragment(key, canon, html, existingSigs);
+      if (predFrag) {
+        html += '\n' + predFrag;
+        console.log(TAG, 'section.vizInjected', key, { mode: 'predictive' });
+      } else {
+        console.log(TAG, 'section.viz.predictive.none', key);
+      }
+    } catch (e) {
+      console.log(TAG, 'section.viz.branch.error', key, String(e?.message || e));
+    }
+
+    sections[key] = html;
+  }
+
+  // Conclusion section (LLM) — modest size, consistent with floor map
+  let conclusionHTML = '';
+  try {
+    const res = await openai.chat.completions.create({
+      model: MODEL,
+      temperature: 1,
+      messages: [
+        { role: 'system', content: 'Return HTML only, a single <section id="conclusion">…</section> with 2 concise paragraphs (3–4 sentences each).' },
+        { role: 'user', content: `Write a concise "Conclusion" for ${canon.orgName} based on the preceding sections.` }
+      ]
+    });
+    conclusionHTML = (res.choices?.[0]?.message?.content || '').trim();
+    if (!/id=["']conclusion["']/.test(conclusionHTML)) {
+      conclusionHTML = '<section id="conclusion"><h2>Conclusion</h2><p>Initiatives deliver material value within the horizon. Execution discipline, measurement, and change management determine outcomes.</p></section>';
+    }
+  } catch (e) {
+    console.log(TAG, 'conclusion.error', String(e?.message || e));
+  }
+
+  // Build base template (title page, numbering containers, 2x2 KPI dashboard wrapper, etc.)
+  const base = await buildReformReportHTML({
+    canon,
+    sections,
+    phases: [],          // internal — unused here
+    planDiagramHTML,     // available to template
+    implKit: {}          // reserved hook
+  });
+
+  // Merge conclusion + appendix into the final HTML
+  const appendicesHTML = buildAppendicesHTML(canon, sections);
+
+  // splice: replace/append <section id="appendices"> if present; else append
+  let html = String(base || '');
+  if (/<section id=["']appendices["']/.test(html)) {
+    html = html.replace(/<section id=["']appendices["'][\s\S]*?<\/section>/i, appendicesHTML);
+  } else {
+    html += '\n' + appendicesHTML;
+  }
+  html += '\n' + conclusionHTML;
+
+  // Table titles (Oct-22 style, themed)
+  html = injectTableTitles(html, canon);
+
+  // Comment out any legacy non-note paragraphs that directly follow visuals
+  html = commentOutLegacyVisualNotes(html);
+
+  // Deterministic notes for STANDARD charts (predictive got AI notes already)
+  html = injectStdChartNotes(html, canon);
+
+  // Final word counts
+  const sectionsWords = wc(Object.values(sections).join(' '));
+  const htmlWords = wc(html);
+  console.log(TAG, 'generate.done', { sectionsWords, htmlWords, target: canon.minWords });
+
+  return NextResponse.json({ ok: true, html, wordCount: sectionsWords, htmlWordCount: htmlWords });
+}

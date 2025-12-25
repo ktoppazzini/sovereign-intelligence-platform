@@ -1,0 +1,92 @@
+export const runtime = 'nodejs';
+
+import { NextResponse } from 'next/server';
+
+function need(keys) {
+  const miss = [];
+  const vals = {};
+  for (const k of keys) {
+    const v = process.env[k];
+    if (!v || String(v).trim() === '') miss.push(k);
+    vals[k] = v;
+  }
+  return { miss, vals };
+}
+
+async function i18n(baseUrl, lang, obj, ms = 4000) {
+  if (!lang) return obj;
+  try {
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), ms);
+    const safe = JSON.stringify(obj).replace(/\n/g, '\\n');
+    const prompt = `Translate the following fields into ${lang}. Return ONLY a raw JSON object with the same keys.\n${safe}`;
+    const r = await fetch(`${baseUrl}/api/gptTranslation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+      signal: c.signal,
+    });
+    clearTimeout(t);
+    if (!r.ok) return obj;
+    const j = await r.json().catch(() => ({}));
+    const tr = j?.translation && typeof j.translation === 'object' ? j.translation : j;
+    return { ...obj, ...tr };
+  } catch {
+    return obj;
+  }
+}
+
+export async function GET(req) {
+  const { searchParams } = new URL(req.url);
+  const lang = searchParams.get('lang') || 'English';
+
+  const { miss, vals } = need(['AIRTABLE_API_KEY', 'AIRTABLE_BASE_ID', 'APP_BASE_URL']);
+  if (miss.length) {
+    const tr = await i18n(vals.APP_BASE_URL, lang, { uiErrorMessage: 'Failed to load reports.' });
+    return NextResponse.json(
+      { error: `Missing env var(s): ${miss.join(', ')}`, uiErrorMessage: tr.uiErrorMessage },
+      { status: 500 },
+    );
+  }
+
+  // allow flexible field names via env (safe defaults)
+  const TABLE = process.env.AIRTABLE_REFORMS_TABLE || 'Reforms';
+  const EMAIL = process.env.AIRTABLE_REFORMS_EMAIL_FIELD || 'ClientEmail';
+  const LANGF = process.env.AIRTABLE_REFORMS_LANG_FIELD || 'Lang';
+  const STATUS = process.env.AIRTABLE_REFORMS_STATUS_FIELD || 'Status';
+  const PLAN = process.env.AIRTABLE_REFORMS_PLAN_FIELD || 'PlanText';
+  const UPDATED = process.env.AIRTABLE_REFORMS_UPDATED_FIELD || 'LastUpdated';
+
+  try {
+    const base = vals.AIRTABLE_BASE_ID;
+    const table = encodeURIComponent(TABLE);
+    const listUrl = new URL(`https://api.airtable.com/v0/${base}/${table}`);
+    listUrl.searchParams.set('pageSize', '25');
+    listUrl.searchParams.set('sort[0][field]', UPDATED);
+    listUrl.searchParams.set('sort[0][direction]', 'desc');
+
+    const headers = { Authorization: `Bearer ${vals.AIRTABLE_API_KEY}` };
+
+    const r = await fetch(listUrl, { headers, cache: 'no-store' });
+    const j = await r.json();
+
+    const items = (j?.records || []).map((rec) => ({
+      id: rec.id,
+      email: rec.fields?.[EMAIL] ?? null,
+      lang: rec.fields?.[LANGF] ?? null,
+      status: rec.fields?.[STATUS] ?? null,
+      updated: rec.fields?.[UPDATED] ?? null,
+      plan: rec.fields?.[PLAN] ?? null,
+    }));
+
+    return NextResponse.json({ ok: true, items });
+  } catch (e) {
+    const tr = await i18n(process.env.APP_BASE_URL, lang, {
+      uiErrorMessage: 'Failed to load reports.',
+    });
+    return NextResponse.json(
+      { error: 'fetch_failed', uiErrorMessage: tr.uiErrorMessage },
+      { status: 500 },
+    );
+  }
+}

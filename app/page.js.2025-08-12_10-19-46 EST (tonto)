@@ -1,0 +1,75 @@
+// app/page.js
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import Footer from '../components/Footer';
+
+export default function HomePage() {
+  const qs = useSearchParams();
+  const lang = (qs.get('lang') || 'English').trim();
+
+  // Only translate the welcome copy — brand title stays English (fixed).
+  const [t, setT] = useState({
+    welcomeTitle: 'Welcome',
+    welcomeSubtitle: 'This is a multilingual app.',
+  });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const prompt = `Translate the following labels into ${lang}. Return only a raw JSON object:
+{"welcomeTitle":"Welcome","welcomeSubtitle":"This is a multilingual app."}`;
+
+    (async () => {
+      try {
+        const res = await fetch('/api/gptTranslation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt }),
+          signal: controller.signal,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data?.translation && typeof data.translation === 'object') {
+          setT((prev) => ({ ...prev, ...data.translation }));
+        }
+      } catch {
+        // ignore network/abort issues; keep English fallback
+      }
+    })();
+
+    return () => controller.abort();
+  }, [lang]);
+
+  return (
+    <>
+      <section className="max-w-[1200px] mx-auto px-4 py-6 ">
+        {/* Brand title stays English and sits above everything */}
+        <h1 className="text-4xl font-extrabold mb-6 ml-8">Sovereign Intelligence</h1>
+
+        {/* Row with left margin and space between logo and translated copy.
+            Stacks on small screens; side-by-side on md+ */}
+        <div className="ml-8 flex flex-col md:flex-row items-start gap-8">
+          {/* Logo (left) */}
+          <div className="shrink-0">
+            <img
+              src="/images/secure.png"
+              alt="Sovereign Intelligence"
+              width={260}
+              height={260}
+              style={{ width: 260, height: 260, objectFit: 'contain', display: 'block' }}
+              decoding="async"
+            />
+          </div>
+
+          {/* Translated copy (right) */}
+          <div className="pt-2">
+            <p className="text-2xl font-bold mb-1">{t.welcomeTitle}</p>
+            <p className="opacity-90">{t.welcomeSubtitle}</p>
+          </div>
+        </div>
+      </section>
+
+      <Footer lang={lang} />
+    </>
+  );
+}

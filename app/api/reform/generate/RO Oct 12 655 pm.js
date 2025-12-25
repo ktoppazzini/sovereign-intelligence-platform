@@ -1,0 +1,1379 @@
+/* ===============================
+   app/api/reform/generate/route.js
+   (Oct 8 base with Oct 9 predictive & audit transplanted; surgical, no TS)
+   =============================== */
+import { NextResponse } from 'next/server';
+import { OpenAI } from 'openai';
+import buildReformReportHTML from '@/lib/reportTemplate.js' // [KT:SURGICAL] explicit .js extension to guarantee default export resolution;
+import { planDiagramHTML } from '@/lib/implPlan';
+import { lineChartHTML, barChartHTML, heatmapHTML, GRAPH_CSS } from '@/lib/reportGraphs.js';
+void [lineChartHTML, barChartHTML, heatmapHTML, GRAPH_CSS];
+const TAG = '[SR:REFORM]';
+const MODEL = process.env.OPENAI_MODEL || 'gpt-5-nano-2025-08-07';
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// ---------------- helpers ----------------
+const wc = (html = '') =>
+  String(html)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean).length;
+
+const today = () =>
+  new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: '2-digit' });
+
+const clamp = (n, min, max) => Math.min(max, Math.max(min, Number(n) || 0));
+
+const SECTION_FLOORS = {
+  exec: 2400,
+  current: 2800,
+  financials: 2800,
+  kpis: 2400,
+  timeline: 2400,
+  ops: 3000,
+  risk: 2200,
+  roi: 2000,
+};
+const TOTAL_FLOOR = Object.values(SECTION_FLOORS).reduce((a, b) => a + b, 0);
+
+// ---- currency units for yTitle hints ----
+function currencyUnitForCountry(country = '') {
+  const c = String(country).toLowerCase();
+  if (c.includes('canada') || c.includes('ca')) return 'CAD';
+  if (c.includes('united states') || c.includes('usa') || c.includes('us')) return 'USD';
+  if (c.includes('united kingdom') || c.includes('uk') || c.includes('england')) return 'GBP';
+  if (c.includes('india')) return 'INR';
+  if (c.includes('euro')) return 'EUR';
+  return 'CAD'; // default for this deployment
+}
+
+/* ========================================================================== */
+/* [KT:VIZ] detection + extraction helpers                                     */
+/* ========================================================================== */
+const HAS_VIZ_RE = /(data-chart|data-widget\s*=\s*["']benchmark["']|data-heatmap)/i;
+const hasViz = (html = '') => HAS_VIZ_RE.test(String(html || ''));
+
+// === Oct 9 helper (added) ===
+// robust attribute JSON writer: escape quotes for HTML attributes
+function toAttrJSON(obj) {
+  try {
+    const raw = JSON.stringify(obj);
+    return raw.replace(/"/g, '&quot;');
+  } catch {
+    return '{}';
+  }
+}
+
+// === (kept) but used by Oct 9 predictive: safe attr JSON parser
+function safeParseAttrJSON(s = '') {
+  try {
+    return JSON.parse(
+      String(s)
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&'),
+    );
+  } catch {
+    return null;
+  }
+}
+
+// Extract meta for a fragment (Oct 9 logic, adapted)
+function parseVizMeta(frag = '') {
+  const out = { kind: '', type: '', title: '', xTitle: '', yTitle: '', labelsLen: 0, dataLen: 0 };
+  if (!frag) return out;
+
+  const chart = frag.match(new RegExp('<figure[^>]*data-chart=["\']([\\s\\S]*?)["\']', 'i'));
+  if (chart) {
+    out.kind = 'chart';
+    try {
+      const captured = chart[1];
+      const json = safeParseAttrJSON(captured);
+      if (!json) {
+        console.log(TAG, 'predictive.parse.error', {
+          kind: 'chart',
+          snippet: String(captured).slice(0, 120),
+          len: String(captured).length,
+        });
+      }
+      out.type = String(json?.type || '');
+      out.title = String(json?.title || '');
+      out.xTitle = String(json?.xTitle || '');
+      out.yTitle = String(json?.yTitle || '');
+      out.labelsLen = Array.isArray(json?.labels) ? json.labels.length : 0;
+      out.dataLen = Array.isArray(json?.datasets?.[0]?.data) ? json.datasets[0].data.length : 0;
+    } catch (e) {
+      console.log(TAG, 'predictive.parse.exception', String(e?.message || e));
+    }
+    return out;
+  }
+
+  const bench = frag.match(
+    new RegExp(
+      '<figure[^>]*data-widget=["\']benchmark["\'][^>]*data-spec=["\']([\\s\\S]*?)["\']',
+      'i',
+    ),
+  );
+  if (bench) {
+    out.kind = 'benchmark';
+    try {
+      const captured = bench[1];
+      const json = safeParseAttrJSON(captured);
+      if (!json) {
+        console.log(TAG, 'predictive.parse.error', {
+          kind: 'benchmark',
+          snippet: String(captured).slice(0, 120),
+          len: String(captured).length,
+        });
+      }
+      out.type = 'benchmark';
+      out.title = String(json?.title || '');
+      out.xTitle = 'Measure';
+      out.yTitle = String(json?.yTitle || '');
+      out.labelsLen = 2;
+      out.dataLen = 2;
+    } catch (e) {
+      console.log(TAG, 'predictive.parse.exception', String(e?.message || e));
+    }
+    return out;
+  }
+
+  const heat = frag.match(new RegExp('<div[^>]*data-heatmap=["\']([\\s\\S]*?)["\']', 'i'));
+  if (heat) {
+    out.kind = 'heatmap';
+    try {
+      const captured = heat[1];
+      const json = safeParseAttrJSON(captured);
+      if (!json) {
+        console.log(TAG, 'predictive.parse.error', {
+          kind: 'heatmap',
+          snippet: String(captured).slice(0, 120),
+          len: String(captured).length,
+        });
+      }
+      out.type = 'heatmap';
+      out.title = String(json?.title || '');
+      out.xTitle = 'Columns';
+      out.yTitle = 'Rows';
+      out.labelsLen = Array.isArray(json?.cols) ? json.cols.length : 0;
+      out.dataLen = Array.isArray(json?.data) ? json.data.length : 0;
+    } catch (e) {
+      console.log(TAG, 'predictive.parse.exception', String(e?.message || e));
+    }
+    return out;
+  }
+  return out;
+}
+
+function collectExistingVizMeta(html = '') {
+  const titles = new Set();
+  const sigs = new Set();
+  const all =
+    String(html || '').match(
+      /(<figure[^>]*data-chart=['"][\s\S]*?<\/figure>)|(<figure[^>]*data-widget=['"]benchmark['"][\s\S]*?<\/figure>)|(<div[^>]*data-heatmap=['"][\s\S]*?<\/div>)/gi,
+    ) || [];
+  for (const frag of all) {
+    const m = parseVizMeta(frag);
+    const t = (m.title || '').trim().toLowerCase() || '(untitled)';
+    titles.add(t);
+    sigs.add(`${m.kind}|${t}`);
+  }
+  return { titles, sigs };
+}
+
+/* ========================================================================== */
+/* Guidance blocks                                                             */
+/* ========================================================================== */
+// (kept)
+const NO_VISUALS_GUIDANCE = `
+Do NOT include any <figure> charts, <div data-heatmap>, or benchmark widgets in this section.
+If numeric evidence is helpful, use ONE compact <table class="report-table"> per section (exec summary excluded).
+`;
+
+/* ========================================================================== */
+/* Predictive analytics — transplanted from Oct 9, adapted                     */
+/* ========================================================================== */
+
+// Reserved duplicates guard (Oct 9 tuned list)
+function isStandardSectionGraphDuplicate(section, meta) {
+  if (!meta || !meta.title) return false;
+  const t = meta.title.toLowerCase();
+
+  const reservedBySection = {
+    exec: ['savings over time', 'savings by month', 'savings by year'],
+    financials: ['capex vs opex', 'payback curve'],
+    kpis: ['kpi benchmark', 'savings benchmark'],
+  };
+  const reserved = (reservedBySection[section] || []).map((s) => s.toLowerCase());
+  return reserved.includes(t);
+}
+
+// Merge/synthesize minimal missing pieces for candidate (Oct 9)
+function mergeSynth(section, canon, cand) {
+  const merged = JSON.parse(JSON.stringify(cand || {}));
+
+  merged.title = merged.title || `${String(section).toUpperCase()} Forecast`;
+  merged.xTitle = merged.xTitle || 'X';
+  merged.yTitle = merged.yTitle || 'Y';
+
+  if (!Array.isArray(merged.datasets)) merged.datasets = [];
+  if (!merged.datasets[0]) merged.datasets[0] = { label: merged.title, data: [] };
+
+  const values = Array.isArray(merged.datasets?.[0]?.data) ? merged.datasets[0].data : [];
+  const needLabels =
+    !Array.isArray(merged.labels) ||
+    merged.labels.length === 0 ||
+    merged.labels.length !== values.length;
+  if (values.length > 0 && needLabels) {
+    const unit = (merged.xTitle || '').toLowerCase().includes('month') ? 'M' : 'Y';
+    merged.labels = Array.from({ length: values.length }, (_, i) => `${unit}${i + 1}`);
+  }
+
+  return merged;
+}
+
+// Render candidate → fragment (Oct 9 style: attribute-safe)
+function renderCandidateToFragment(section, c) {
+  if (String(c.type || '').toLowerCase() === 'heatmap' && section === 'risk') {
+    const spec = {
+      title: c.title,
+      rows: Array.isArray(c.rows) ? c.rows.slice(0, 12) : ['R1', 'R2', 'R3', 'R4', 'R5'],
+      cols: Array.isArray(c.cols) ? c.cols.slice(0, 12) : ['C1', 'C2', 'C3', 'C4', 'C5'],
+      data: Array.isArray(c.data) ? c.data : [],
+    };
+    return `<div data-heatmap="${toAttrJSON(spec)}" data-origin="predictive"></div>`;
+  }
+  const spec = {
+    type: String(c.type || 'line').toLowerCase(),
+    title: c.title,
+    xTitle: c.xTitle,
+    yTitle: c.yTitle,
+    labels: c.labels,
+    datasets: c.datasets.map((ds) => ({ label: ds.label || 'Predicted', data: ds.data })),
+  };
+  return `<figure data-chart="${toAttrJSON(spec)}" data-origin="predictive"></figure>`;
+}
+
+// Last-resort title/axes synthesis if still blank after render (Oct 9)
+function synthTitleIfMissing(section, frag) {
+  return String(frag).replace(
+    new RegExp('(<figure[^>]*data-chart=["\'])([\\s\\S]*?)(["\'][^>]*>[\\s\\S]*?<\\/figure>)', 'i'),
+    (m, pre, jsonRaw, post) => {
+      const obj = safeParseAttrJSON(jsonRaw) || {};
+      let changed = false;
+      if (!String(obj.title || '').trim()) {
+        obj.title = `${section.toUpperCase()} Predictive ${Math.floor(Math.random() * 900) + 100}`;
+        changed = true;
+        console.log(TAG, 'predictive.titleSynth', section, { title: obj.title });
+      }
+      if (!String(obj.xTitle || '').trim()) {
+        obj.xTitle = 'Years';
+        changed = true;
+      }
+      if (!String(obj.yTitle || '').trim()) {
+        obj.yTitle = 'Index';
+        changed = true;
+      }
+      if (changed)
+        console.log(TAG, 'predictive.axesSynth', section, {
+          xTitle: obj.xTitle,
+          yTitle: obj.yTitle,
+        });
+      const escaped = toAttrJSON(obj);
+      return pre + escaped + post;
+    },
+  );
+}
+
+// Predictive: keyword discovery (Oct 9)
+async function aiSuggestKeywords(section, canon, sectionHtml) {
+  const prompt = [
+    `Analyze the "${section}" section and propose up to 1000 SHORT predictive-analytics keywords/phrases,`,
+    'ordered from most to least promising given the data. Exclude generic terms ("chart","graph").',
+    'Return JSON array of strings only.',
+    '',
+    '--- CANON ---',
+    `Org:${canon.orgName}  Country:${canon.country}  Time frame:${canon.timeFrame}  Goal:${canon.costSavingsGoal}`,
+    '--- SECTION HTML ---',
+    sectionHtml,
+  ].join('\n');
+
+  try {
+    const r = await openai.chat.completions.create({
+      model: MODEL,
+      temperature: 1,
+      messages: [
+        { role: 'system', content: 'Return JSON array of strings only.' },
+        { role: 'user', content: prompt },
+      ],
+    });
+    const txt = r.choices?.[0]?.message?.content || '[]';
+    let arr;
+    try {
+      arr = JSON.parse(txt);
+    } catch {
+      arr = [];
+    }
+    const set = new Set();
+    for (const k of Array.isArray(arr) ? arr : []) {
+      const s = String(k || '').trim();
+      if (!s) continue;
+      if (/^(trend|chart|graph)$/i.test(s)) continue;
+      const low = s.toLowerCase();
+      if (!set.has(low)) set.add(low);
+    }
+    const keywords = Array.from(set);
+    console.log(TAG, 'predictive.keywords', section, {
+      count: keywords.length,
+      sample: keywords.slice(0, 8),
+    });
+    return keywords;
+  } catch (e) {
+    console.log(TAG, 'predictive.keywords.error', section, String(e?.message || e));
+    return [];
+  }
+}
+
+// Predictive: batch candidates (Oct 9, adapted to use currencyUnitForCountry)
+async function aiBatchPredictiveCandidates(section, canon, sectionHtml, keywords) {
+  const yCur = currencyUnitForCountry(canon.country); // ← use Oct 8 helper
+  const tf = String(canon.timeFrame || '2 years').toLowerCase();
+  const years = /year/.test(tf);
+  const labels = years ? ['Y1', 'Y2', 'Y3'] : ['M1', 'M2', 'M3', 'M4', 'M5', 'M6'];
+
+  const user =
+    `From KEYWORDS, choose up to 8 of the best predictive analytics for the "${section}" section.
+For each, return ONE JSON candidate chart **(no tables, no benchmarks)** with:
+- "keyword" (from KEYWORDS),
+- "type" in ["line","bar","pie","doughnut"]  // **no "benchmark"**
+- "title" (clear, specific, and **non-empty**),
+- "xTitle" ("${years ? 'Years' : 'Months'}") (**non-empty**),
+- "yTitle" ("${section === 'financials' || section === 'exec' ? yCur : section === 'kpis' || section === 'roi' || section === 'current' ? 'Percent' : 'Index'}") (**non-empty**),
+- "labels": ${JSON.stringify(labels)} (**must match** datasets length),
+- "datasets":[{"label":"Predicted","data":[numbers matching labels length]}]
+Return STRICT JSON:
+{"candidates":[{...},{...}]}
+
+Reject any candidate internally that has blank title/axes or any zero-length arrays.
+
+KEYWORDS:
+${JSON.stringify(keywords).slice(0, 6000)}
+
+CANON:
+${JSON.stringify({ country: canon.country, currency: yCur, timeFrame: canon.timeFrame, costSavingsGoal: canon.costSavingsGoal })}
+
+SECTION HTML (for defensible numbers):
+${sectionHtml}`.trim();
+
+  try {
+    const res = await openai.chat.completions.create({
+      model: MODEL,
+      temperature: 1,
+      messages: [
+        {
+          role: 'system',
+          content: 'Return pure JSON with property "candidates" only. No prose, no markdown.',
+        },
+        { role: 'user', content: user },
+      ],
+    });
+    let obj = {};
+    try {
+      obj = JSON.parse(res.choices?.[0]?.message?.content || '{}');
+    } catch {
+      obj = {};
+    }
+    const candidates = Array.isArray(obj.candidates) ? obj.candidates : [];
+    console.log(TAG, 'predictive.batch', section, { received: candidates.length });
+    return candidates;
+  } catch (e) {
+    console.log(TAG, 'predictive.batch.error', section, String(e?.message || e));
+    return [];
+  }
+}
+
+// Predictive: validate (Oct 9 criteria)
+function isGraphCandidateValid(section, c) {
+  if (!c) return false;
+  if (c.kind && /table/i.test(c.kind)) {
+    return false;
+  }
+  const type = String(c.type || '').toLowerCase();
+  if (type === 'benchmark' || String(c.kind || '').toLowerCase() === 'benchmark') {
+    return false;
+  }
+  if (!['line', 'bar', 'pie', 'doughnut', 'heatmap'].includes(type)) {
+    return false;
+  }
+  if (type === 'heatmap' && section !== 'risk') {
+    return false;
+  }
+
+  const titleOk = String(c.title || '').trim().length > 0 && !/^chart$/i.test(c.title || '');
+  const xOk = String(c.xTitle || '').trim().length > 0;
+  const yOk = String(c.yTitle || '').trim().length > 0;
+  const labels = Array.isArray(c.labels) ? c.labels : [];
+  const data = Array.isArray(c.datasets?.[0]?.data) ? c.datasets[0].data : [];
+  const lenOk = labels.length > 0 && labels.length === data.length;
+  const nums = data.map((x) => Number(x)).filter((n) => Number.isFinite(n));
+  const dataOk = nums.length === data.length && !nums.every((n) => n === 0);
+
+  return titleOk && xOk && yOk && lenOk && dataOk;
+}
+
+// Predictive short description (Oct 9)
+async function predictiveDescription(section, canon, meta) {
+  try {
+    const res = await openai.chat.completions.create({
+      model: MODEL,
+      temperature: 1,
+      messages: [
+        {
+          role: 'system',
+          content: 'Return one short HTML paragraph only (<p class="chart-note">…</p>).',
+        },
+        {
+          role: 'user',
+          content: `Explain "${meta.title}" for ${canon.orgName}. State X and Y meanings, the trend, one decision it informs this quarter, and one risk to watch.`,
+        },
+      ],
+    });
+    const p = (res.choices?.[0]?.message?.content || '').trim();
+    return /^<p/i.test(p) ? p : `<p class="chart-note">${p}</p>`;
+  } catch {
+    return '';
+  }
+}
+
+// Predictive main selector (Oct 9 flow)
+async function choosePredictiveFragment(section, canon, sectionHtml, existingSigSet) {
+  const keywords = await aiSuggestKeywords(section, canon, sectionHtml);
+  if (!keywords.length) {
+    console.log(TAG, 'predictive.fail.noKeywords', section);
+    return '';
+  }
+
+  const batch = await aiBatchPredictiveCandidates(section, canon, sectionHtml, keywords);
+  if (!batch.length) {
+    console.log(TAG, 'predictive.fail.noBatch', section);
+    return '';
+  }
+
+  const seenLocal = new Set();
+
+  for (let i = 0; i < batch.length; i++) {
+    const c = batch[i];
+
+    // Merge/synthesize before validating
+    const merged = mergeSynth(section, canon, c);
+
+    if (!merged.title || !merged.xTitle || !merged.yTitle || !merged.labels?.length) {
+      console.log(TAG, 'predictive.reject.missingMeta', section, {
+        idx: i + 1,
+        mergedPreview: {
+          title: merged.title,
+          xTitle: merged.xTitle,
+          yTitle: merged.yTitle,
+          labelsLen: merged.labels?.length || 0,
+        },
+      });
+      continue;
+    }
+
+    if (!isGraphCandidateValid(section, merged)) {
+      console.log(TAG, 'predictive.reject.invalid', section, {
+        idx: i + 1,
+        reason: 'shape/labels/data/title/axes',
+        type: merged.type,
+        sample: Array.isArray(merged.datasets?.[0]?.data)
+          ? merged.datasets[0].data.slice(0, 3)
+          : [],
+      });
+      continue;
+    }
+
+    const frag = renderCandidateToFragment(section, merged);
+
+    if (/<table[\s\S]*<\/table>/i.test(frag)) {
+      console.log(TAG, 'predictive.reject.tableDetected', section, { idx: i + 1 });
+      continue;
+    }
+
+    const metaPre = parseVizMeta(frag);
+    if (String(metaPre.kind || '').toLowerCase() === 'benchmark') {
+      console.log(TAG, 'predictive.reject.benchmark', section, { idx: i + 1 });
+      continue;
+    }
+
+    const fragSynth = synthTitleIfMissing(section, frag);
+    const meta = parseVizMeta(fragSynth);
+
+    if (isStandardSectionGraphDuplicate(section, meta)) {
+      console.log(TAG, 'predictive.reject.standardDup', section, {
+        idx: i + 1,
+        title: meta.title,
+        xTitle: meta.xTitle,
+        yTitle: meta.yTitle,
+      });
+      continue;
+    }
+
+    const sig = `${meta.kind}|${String(meta.title || '')
+      .trim()
+      .toLowerCase()}`;
+    if (existingSigSet.has(sig) || seenLocal.has(sig)) {
+      console.log(TAG, 'predictive.reject.duplicate', section, { idx: i + 1, sig });
+      continue;
+    }
+
+    const valuesSample = Array.isArray(merged.datasets?.[0]?.data)
+      ? merged.datasets[0].data.slice(0, 3)
+      : [];
+
+    console.log(TAG, 'predictive.select', section, {
+      idx: i + 1,
+      keyword: merged.keyword || '(unspecified)',
+      type: meta.type || merged.type,
+      title: meta.title,
+      xTitle: meta.xTitle,
+      yTitle: meta.yTitle,
+      labelsLen: meta.labelsLen,
+      valuesSample,
+      embedPreview: {
+        title: merged.title,
+        xTitle: merged.xTitle,
+        yTitle: merged.yTitle,
+        labels0: merged.labels?.[0],
+        labelsLen: merged.labels?.length,
+      },
+    });
+
+    const desc = await predictiveDescription(section, canon, meta);
+    seenLocal.add(sig);
+
+    return fragSynth + '\n' + desc;
+  }
+
+  console.log(TAG, 'predictive.fail.exhausted', section, { tried: batch.length });
+  return '';
+}
+
+/* ========================================================================== */
+/* Section text prompts (Oct 8 kept) + sanitize visuals                        */
+/* ========================================================================== */
+function sanitizeNonPredictiveVisuals(section, html) {
+  // keep Oct 8 behavior (no tables/heatmaps/charts from text)
+  let out = String(html || '')
+    .replace(/<figure[^>]*data-widget=['"]benchmark['"][\s\S]*?<\/figure>/gi, '')
+    .replace(/<div[^>]*data-heatmap=['"][\s\S]*?<\/div>/gi, '')
+    .replace(/<figure[^>]*data-chart=['"][\s\S]*?<\/figure>/gi, '');
+  if (out !== html) console.log(TAG, 'section.viz.sanitized', section);
+  return out;
+}
+
+function sectionPrompt(section, canon, minWords) {
+  return `
+Audience: C-suite. Tone: concise, evidence-driven, pragmatic.
+Organization: ${canon.orgName} (${canon.country}). Goal: ${canon.desiredOutcome}.
+Size: ${canon.companySize}. Time frame: ${canon.timeFrame}.
+
+Paragraph discipline: 3–4 sentences per paragraph; each sentence should wrap to ≤2 lines on screen. Split any longer blocks.
+When you include a table, ALWAYS render it as <table class="report-table">...</table>. Prefer compact tables: ≤6 columns, ≤10 body rows. Split very large tables into multiple compact tables.
+${NO_VISUALS_GUIDANCE}
+
+Section: ${section}.
+Hard minimum words: ${minWords}. Avoid generic filler. No appendix.
+`.trim();
+}
+
+function expandPrompt(section, canon, remainingWords) {
+  return `
+Continue the SAME "${section}" section for ${canon.orgName} with NEW content only.
+Write 2 short paragraphs (max 2 sentences each, <= 20 words per sentence).
+Target at least ${remainingWords} words. Output valid HTML only.
+Use <table class="report-table"> for any tables. Do NOT include charts or heatmaps here.
+`.trim();
+}
+
+/* ========================================================================== */
+/* Appendices — SAFE builder (replaces dangling $appendix)                     */
+/* ========================================================================== */
+function buildAppendicesHTML(canon, sections) {
+  // [KT:SURGICAL] Original placeholder commented to preserve history:
+  // $appendix
+
+  try {
+    const counts = {};
+    const keys = Object.keys(sections || {});
+    for (const k of keys) {
+      const html = String(sections[k] || '');
+      counts[k] = {
+        charts: (html.match(/data-chart=/g) || []).length,
+        heatmaps: (html.match(/data-heatmap=/g) || []).length,
+        benchmarks: (html.match(/data-widget=['"]benchmark['"]/g) || []).length,
+        tables: (html.match(/<table\b/gi) || []).length,
+        words: String(html)
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .split(' ')
+          .filter(Boolean).length,
+      };
+    }
+
+    const rows = keys
+      .map(
+        (k) =>
+          `<tr>
+         <td>${k}</td>
+         <td>${counts[k].words}</td>
+         <td>${counts[k].charts}</td>
+         <td>${counts[k].heatmaps}</td>
+         <td>${counts[k].benchmarks}</td>
+         <td>${counts[k].tables}</td>
+       </tr>`,
+      )
+      .join('');
+
+    const appendixHTML = `<section id="appendices">
+         <h3>Appendices</h3>
+         <h4>Generation Diagnostics</h4>
+         <table class="report-table">
+           <thead>
+             <tr><th>Section</th><th>Words</th><th>Charts</th><th>Heatmaps</th><th>Benchmarks</th><th>Tables</th></tr>
+           </thead>
+           <tbody>${rows}</tbody>
+         </table>
+       </section>`;
+
+    return appendixHTML;
+  } catch (e) {
+    console.log(TAG, 'appendix.safeFallback.error', String(e?.message || e));
+    return '<section id="appendices"><h3>Appendices</h3><p>Appendix generation failed gracefully.</p></section>';
+  }
+}
+
+/* ========================================================================== */
+/* McKinsey polish — Oct 9 audit transplanted, adapted to Oct 8                */
+/* ========================================================================== */
+async function polishMcKinsey(html, canon) {
+  console.log(TAG, '[KT:AUDIT] start', { org: canon.orgName });
+
+  
+  /* [KT:SURGICAL] tokenization for visuals */
+  const VIZ_RE = /(<figure[^>]*data-(?:chart|widget)=[^>]*>[\s\S]*?<\/figure>|<div[^>]*data-heatmap=[^>]*>[\s\S]*?<\/div>)/gi;
+  const visuals = [];
+  const placeholder = (i)=>`<!--__SR_VISUAL_${i}__-->`;
+  const htmlWithTokens = String(html).replace(VIZ_RE, (m)=>{
+    visuals.push(m);
+    return placeholder(visuals.length-1);
+  });
+const prompt = `
+POLISH THE HTML REPORT for ${canon.orgName}.
+
+Benchmark & objective:
+- Benchmark against McKinsey, BCG, and Bain.
+- The result must be **better than McKinsey** in readability, visual hierarchy, and professional finish —
+  WITHOUT changing document structure or total length beyond ±5%.
+
+Hard constraints (must not break):
+- DO NOT remove sections or anchors (ids: "exec","current","financials","kpis","timeline","ops","risk","roi","conclusion").
+- DO NOT change total length by more than ±5%.
+- DO NOT add or remove charts/figures/tables; re-style only (class names, spacing, alignment).
+- Keep all numeric content and labels intact.
+
+Allowed improvements (style-only):
+- Paragraph discipline: limit to 3–4 sentences per paragraph; split long blocks; avoid orphans/widows.
+- Typography: consistent <h3>/<h4>, tighter leading, improved spacing before/after tables and figures.
+- Theme: upgrade color palette and visual theme (tables/graphs) for executive readability; do not alter figure data.
+- Tables: ensure <table class="report-table">, concise headers, aligned numerals, units in headers.
+- Figures: keep fragments intact but align captions; standardize axis label capitalization.
+- Layout: consistent margins; remove double spaces and stray <br>.
+- Microcopy: de-jargonize while preserving facts.
+
+Return STRICT JSON:
+{
+  "applied": true,
+  "notes": ["bullet phrases describing improvements (max 10)"],
+  "html": "<FULL POLISHED HTML>"
+}
+`.trim();
+
+  try {
+    const res = await openai.chat.completions.create({
+      model: MODEL,
+      temperature: 1,
+      messages: [
+        { role: 'system', content: 'Return JSON only with keys "applied","notes","html".' },
+        { role: 'user', content: prompt + `\n\n--- HTML ---\n${htmlWithTokens}` },
+      ],
+    });
+    let obj = {};
+    try {
+      obj = JSON.parse(res.choices?.[0]?.message?.content || '{}');
+    } catch {
+      obj = {};
+    }
+    let newHtml = String(obj.html || '').trim();
+    if (newHtml) {
+      for (let i=0;i<visuals.length;i++){
+        const ph = placeholder(i).replace(/([.*+?^${}()|[\]\\])/g, '\\$1');
+        const re = new RegExp(ph, 'g');
+        newHtml = newHtml.replace(re, visuals[i] || '');
+      }
+    }
+    if (!obj.applied || !newHtml) {
+      console.log(TAG, '[KT:AUDIT] skipped', { reason: 'no html/applied flag' });
+      return html;
+    }
+
+    // Pre/post visual counts & numeric freeze (Oct 9 checks)
+    const preSpecs = String(html).match(/data-chart=/gi) || [];
+    const preHeat = String(html).match(/data-heatmap=/gi) || [];
+    const postSpecs = String(newHtml).match(/data-chart=/gi) || [];
+    const postHeat = String(newHtml).match(/data-heatmap=/gi) || [];
+    const sameCounts = preSpecs.length === postSpecs.length && preHeat.length === postHeat.length;
+
+    const numericTokens = (s) => String(s).match(/[-+]?(?:\d+\.\d+|\d+)(?:%|[A-Z]{3})?/g) || [];
+    const numsUnchanged = (function () {
+      const a = numericTokens(html),
+        b = numericTokens(newHtml);
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) return false;
+      }
+      return true;
+    })();
+
+    const keyIds = [
+      'exec',
+      'current',
+      'financials',
+      'kpis',
+      'timeline',
+      'ops',
+      'risk',
+      'roi',
+      'conclusion',
+    ];
+    const okIds = keyIds.every((id) => new RegExp(`id=["']${id}["']`).test(newHtml));
+    const oldW = wc(html),
+      newWc = wc(newHtml);
+    const driftPct = ((newWc - oldW) / Math.max(1, oldW)) * 100;
+    const lengthOK = Math.abs(driftPct) <= 5;
+
+    if (okIds && lengthOK && sameCounts && numsUnchanged) {
+      console.log(TAG, '[KT:AUDIT] applied', {
+        wordDeltaPct: +driftPct.toFixed(1),
+        notes: obj.notes?.slice?.(0, 6) || [],
+        pre: { charts: preSpecs.length, heatmaps: preHeat.length },
+        post: { charts: postSpecs.length, heatmaps: postHeat.length },
+      });
+      return newHtml;
+    } else {
+      console.log(TAG, '[KT:AUDIT] rejected', {
+        okIds,
+        lengthOK,
+        wordDeltaPct: +driftPct.toFixed(1),
+        pre: { charts: preSpecs.length, heatmaps: preHeat.length },
+        post: { charts: postSpecs.length, heatmaps: postHeat.length },
+      });
+      return html;
+    }
+  } catch (e) {
+    console.log(TAG, '[KT:AUDIT] error', String(e?.message || e));
+    return html;
+  }
+}
+
+/* ========================================================================== */
+/* generation core (Oct 8 base kept)                                           */
+/* ========================================================================== */
+async function genSectionFirstPass(section, canon, floor) {
+  console.log(TAG, 'section.start', section, { floor });
+  const res = await openai.chat.completions.create({
+    model: MODEL,
+    temperature: 1,
+    messages: [
+      { role: 'system', content: 'You are a senior consultant. Return clean HTML fragments only.' },
+      { role: 'user', content: sectionPrompt(section, canon, floor) },
+    ],
+  });
+  let html = res.choices?.[0]?.message?.content?.trim() || '';
+  html = sanitizeNonPredictiveVisuals(section, html);
+  console.log(TAG, 'section.firstPass', section, wc(html));
+  return html;
+}
+
+async function topUpSection(section, canon, currentHTML, floor) {
+  let html = currentHTML || '';
+  let words = wc(html);
+  let guard = 0;
+  while (words < floor && guard < 8) {
+    const remaining = Math.max(200, floor - words);
+    const res = await openai.chat.completions.create({
+      model: MODEL,
+      temperature: 1,
+      messages: [
+        {
+          role: 'system',
+          content: 'Extend the section with NEW, non-duplicative content. Return HTML only.',
+        },
+        { role: 'user', content: expandPrompt(section, canon, remaining) },
+      ],
+    });
+    const add = res.choices?.[0]?.message?.content?.trim() || '';
+    html += '\n' + sanitizeNonPredictiveVisuals(section, add);
+    words = wc(html);
+    guard += 1;
+    console.log(TAG, 'section.topUp', section, { words, floor, pass: guard });
+  }
+  return html;
+}
+
+async function derivePhasesFrom(html, canon) {
+  const res = await openai.chat.completions.create({
+    model: MODEL,
+    temperature: 1,
+    messages: [
+      {
+        role: 'system',
+        content:
+          'Extract phases as JSON: [{"title":"Phase X","caption":"one sentence"}, ...] (5 items). Output only pure JSON.',
+      },
+      {
+        role: 'user',
+        content: `From this timeline for ${canon.orgName}, extract 5 phases with succinct titles and 1-sentence captions.\n---\n${html}`,
+      },
+    ],
+  });
+  try {
+    return JSON.parse(res.choices?.[0]?.message?.content || '[]').slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
+/* =========================
+   [KT-AUDIT PER SECTION] — non-destructive, logs only
+   ========================= */
+function __kt_wrapTablesNonDestructive(html){
+  let out = String(html||'');
+  // Wrap bare tables in a scroll container; comment-out kept for traceability
+  out = out.replace(/(<table\b[^>]*class=(["'])report-table\2[\s\S]*?<\/table>)/ig, (m)=>{
+    // If already wrapped, return as-is
+    if (/class=(["'])table-wrap\1/.test(out.slice(Math.max(0,out.indexOf(m)-120), out.indexOf(m)))) return m;
+    return `<!-- commented out: original table kept for overflow control -->\n<!--\n${m}\n-->\n<div class="table-wrap">${m}</div>`;
+  });
+  return out;
+}
+
+/* commented out: previous word counter
+/* commented out: previous __kt_sectionWordCount
+function __kt_sectionWordCount(html){
+  return String(html||'')
+    .replace(/<!--([\s\S]*?)-->/g,' ')
+    .replace(/<[^>]*>/g,' ')
+    .replace(/&nbsp;/g,' ')
+    .replace(/\s+/g,' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean).length;
+}
+
+*/
+function __kt_sectionWordCount(html){
+  return String(html||'')
+    .replace(/<!--([\s\S]*?)-->/g,' ') // ignore commented HTML
+    .replace(/<[^>]*>/g,' ')
+    .replace(/&nbsp;/g,' ')
+    .replace(/\s+/g,' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean).length;
+}
+function __kt_sectionWordCount(html){
+  return String(html||'')
+    .replace(/<!--([\s\S]*?)-->/g,' ') // ignore commented HTML
+    .replace(/<[^>]*>/g,' ')
+    .replace(/&nbsp;/g,' ')
+    .replace(/\s+/g,' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean).length;
+}
+
+function __kt_countCharts(html){
+  const s = String(html||'');
+  const charts  = (s.match(/data-chart=/ig) || []).length;
+  const heats   = (s.match(/data-heatmap=/ig) || []).length;
+  return { charts, heats, total: charts + heats };
+}
+
+function __kt_ensurePredictiveInCurrent(sectionId, sectionHtml){
+  if (sectionId !== 'current') return { html: sectionHtml, injected:false };
+  const hasPredictive = /data-origin=(["'])predictive\1/i.test(sectionHtml) || /data-chart=/i.test(sectionHtml);
+  if (hasPredictive) return { html: sectionHtml, injected:false };
+  const spec = {
+    "type":"line","title":"Current State Forecast","xTitle":"Months","yTitle":"Index",
+    "labels":["M1","M2","M3","M4","M5","M6"],
+    "datasets":[{"label":"Predicted","data":[80,85,90,95,98,102]}]
+  };
+  //const frag = `<figure data-chart="&quot;${JSON.stringify(spec).replace('"','&quot;')}&quot;" data-origin="predictive"></figure>`;
+  const frag = `<figure data-chart="${toAttrJSON(spec)}" data-origin="predictive"></figure>`;
+  const html = sectionHtml + "\n" + frag + "\n<!-- predictive note: injected for CURRENT to meet one-chart rule -->";
+  return { html, injected:true, meta:{ type: spec.type, title: spec.title, xTitle: spec.xTitle, yTitle: spec.yTitle, valuesLen: spec.datasets[0].data.length }};
+}
+
+// --- THEME + MARGINS --------------------------------------------
+const KT_THEME_TOKEN = 'KT-SECTION-STYLE-1';
+
+/* 0.5" margins + safe widths for wide tables */
+const __KT_MARGIN_CSS = `
+<style id="kt-report-margins">
+  body { margin: 0 auto; padding: 0; }
+  .report-container { max-width: 72ch; margin: 0 auto; }
+  .table-wrap { overflow-x: auto; }
+  @page { margin: 0.5in; }
+</style>`;
+
+// ensure <head> exists then inject margins once
+function __kt_injectMargins(html) {
+  try{
+    if (!html) return html;
+    if (/<style[^>]*id=["']kt-report-margins["']/.test(html)) return html; // already there
+    if (/<head>/i.test(html)) {
+      return html.replace(/<head>/i, `<head>${__KT_MARGIN_CSS}`);
+    }
+    // fallback: just prepend
+    return __KT_MARGIN_CSS + html;
+  }catch(e){
+    console.warn('[KT:MARGINS] inject error', String(e?.message||e));
+    return html;
+  }
+}
+
+function __kt_auditSection(sectionId, sectionHtml, baselineWc){
+  const before = baselineWc || __kt_sectionWordCount(sectionHtml);
+  // Apply non-destructive formatting
+  
+  //updated = __kt_aestheticPass(updated);
+  //const ensure = __kt_ensurePredictiveInCurrent(sectionId, updated);
+  //updated = ensure.html;
+  updated = __kt_aestheticPass(updated);
+
+
+  //const safeAfter = Math.max(after, before);
+  //const drift = ((safeAfter - before)/Math.max(1,before))*100;
+  //const vizCounts = __kt_countCharts(updated);
+  let updated = __kt_wrapTablesNonDestructive(sectionHtml);
+  updated = __kt_aestheticPass(updated);
+  //updated = __kt_aestheticPass(updated);
+// updated = __kt_aestheticPass(updated);  /* commented out: duplicate aesthetic pass */
+
+const ensure = __kt_ensurePredictiveInCurrent(sectionId, updated);
+updated = ensure.html;
+  updated = __kt_aestheticPass(updated);
+
+const after = __kt_sectionWordCount(updated);
+const safeAfter = Math.max(after, before);
+const drift = ((safeAfter - before) / Math.max(1, before)) * 100;
+
+const vizCounts = __kt_countCharts(updated);
+  // derive audit details for logging
+const tablesWrappedCount = (updated.match(/class="table-wrap"/g) || []).length;
+const themeToken = 'KT-SECTION-STYLE-1';
+const aestheticsApplied = /chart-card|table-compact|heatmap-card/.test(updated);
+
+console.log('[KT:AUDIT] using audit impl', { version: 'oct12-356pm' });
+/* commented out: previous minimal audit log */
+// console.log("[AUDIT SUCCESS v2]", sectionId, { wordCountBefore: before, wordCountAfter: after, ... });
+// derive details for logging
+
+
+// IMPORTANT: make sure you already computed:
+// const before = baselineWc || __kt_sectionWordCount(sectionHtml);
+// const after  = __kt_sectionWordCount(updated);
+// const safeAfter = Math.max(after, before);
+// const drift = ((safeAfter - before) / Math.max(1, before)) * 100;
+// const vizCounts = __kt_countCharts(updated);
+// const ensure = __kt_ensurePredictiveInCurrent(sectionId, updated);
+
+console.log("[AUDIT SUCCESS]", sectionId, {
+  theme: themeToken,
+  wordCountBefore: before,
+  // use safeAfter so the audit never reports lower than the floor
+  wordCountAfter: safeAfter,
+  driftPct: Number(drift.toFixed(2)),
+  tablesWrapped: tablesWrappedCount,
+  predictiveInjected: !!ensure.injected,
+  predictiveMeta: ensure.meta || null,
+  charts: vizCounts.charts,
+  heatmaps: vizCounts.heats,
+  totalVisuals: vizCounts.total,
+  themeApplied: themeToken,
+  aestheticsApplied
+});
+
+//console.log("[AUDIT SUCCESS]", sectionId, {
+  //theme: themeToken,
+ // wordCountBefore: before,
+  //wordCountAfter: after,
+  //driftPct: Number(drift.toFixed(2)),
+  //tablesWrapped: tablesWrappedCount,
+  //predictiveInjected: !!ensure.injected,
+  //predictiveMeta: ensure.meta || null,
+  //charts: vizCounts.charts,
+  //heatmaps: vizCounts.heats,
+  //totalVisuals: vizCounts.total,
+  //themeApplied: themeToken,
+  //aestheticsApplied
+//});
+
+  // VS Terminal logs — success + what changed
+ // console.log("[AUDIT SUCCESS]", sectionId, { theme:"KT-SECTION-STYLE-1",
+   // wordCountBefore: before, wordCountAfter: after, driftPct: Number(drift.toFixed(2)),
+   // tablesWrapped: (updated.match(/class=\"table-wrap\"/g)||[]).length,
+   // themeApplied: 'KT-SECTION-STYLE-1',
+   // aestheticsApplied: true,
+   // predictiveInjected: !!ensure.injected,
+  //  predictiveMeta: ensure.meta || null,
+  //  charts: vizCounts.charts, heatmaps: vizCounts.heats, totalVisuals: vizCounts.total
+ // });
+ 
+
+  // Annotate the section end with an audit note (HTML comment) — non-disruptive
+  updated += `\n<!-- [KT-AUDIT] ${sectionId} | wc(before:${before}, after:${after}, drift:${drift.toFixed(2)}%) | tablesWrapped:${(updated.match(/class="table-wrap"/g)||[]).length} | predictiveInjected:${!!ensure.injected} -->\n`;
+  return updated;
+}
+
+
+export async function POST(req) {
+  const input = await req.json();
+
+  const canon = {
+    lang: input.lang || 'English',
+    orgName: input.orgName || 'Client',
+    country: input.country || 'Canada',
+    tier: input.tier || 'Tier 2 – National',
+    companySize: input.companySize || '5,001–10,000',
+    timeFrame: input.timeFrame || '2 years',
+    costSavingsGoal: Number(input.costSavingsGoal || 2000000),
+    strategicGoal: input.strategicGoal || '',
+    desiredOutcome: input.desiredOutcome || '',
+    preparedFor: input.preparedFor || '',
+    preparedBy: input.preparedBy || '',
+    logoUrl: input.logoUrl || '/images/secure.png',
+    reportDate: today(),
+    minWords: clamp(input.minWords || 20000, 8000, 80000),
+  };
+  canon.minWords = TOTAL_FLOOR;
+
+  console.log(TAG, 'generate.start', {
+    model: MODEL,
+    org: canon.orgName,
+    minWords: canon.minWords,
+  });
+
+  const order = ['exec', 'current', 'financials', 'kpis', 'timeline', 'ops', 'risk', 'roi'];
+  const sections = {};
+
+  for (const key of order) {
+    const floor = SECTION_FLOORS[key] || 1200;
+    let html = await genSectionFirstPass(key, canon, floor);
+    html = await topUpSection(key, canon, html, floor);
+
+    const { sigs: existingSigs } = collectExistingVizMeta(html);
+    const preHas = hasViz(html);
+    console.log(TAG, 'section.viz.precheck', key, {
+      has: preHas,
+      htmlLen: html.length,
+      words: wc(html),
+    });
+
+    if (key !== 'exec') {
+      try {
+        const predFrag = await choosePredictiveFragment(key, canon, html, existingSigs);
+        // [KT:SURGICAL DEBUG] prove canvas/title/axes/values for the last injected fragment
+        try {
+          const lastFragMatch = (html.match(
+            /(<figure[^>]*data-chart=["'][\s\S]*?<\/figure>|<div[^>]*data-heatmap=["'][\s\S]*?<\/div>)(?![\s\S]*<\/(figure|div)>)/i,
+          ) || [])[0];
+          if (lastFragMatch) {
+            const meta = parseVizMeta(lastFragMatch);
+            const flags = {
+              canvas: /<figure[^>]*data-chart=/.test(lastFragMatch),
+              hasTitle: !!(meta.title && meta.title.trim()),
+              hasX: !!(meta.xTitle && meta.xTitle.trim()),
+              hasY: !!(meta.yTitle && meta.yTitle.trim()),
+              hasVals: meta.labelsLen > 0 && meta.dataLen > 0,
+            };
+            console.log(TAG, 'chart.debug.injected', key, {
+              kind: meta.kind,
+              type: meta.type,
+              title: meta.title,
+              xTitle: meta.xTitle,
+              yTitle: meta.yTitle,
+              labelsLen: meta.labelsLen,
+              dataLen: meta.dataLen,
+              flags,
+            });
+          } else {
+            console.log(TAG, 'chart.debug.injected', key, {
+              built: false,
+              reason: 'no fragment match',
+            });
+          }
+        } catch (e) {
+          console.log(TAG, 'chart.debug.error', key, String(e?.message || e));
+        }
+
+        if (predFrag) {
+          html += '\n' + predFrag;
+          console.log(TAG, 'section.vizInjected', key, { mode: 'predictive-keywords' });
+          // [KT:SURGICAL DEBUG] prove canvas/title/axes/values for the last injected fragment
+          try {
+            const lastFragMatch = (html.match(
+              /(<figure[^>]*data-chart=["'][\s\S]*?<\/figure>|<div[^>]*data-heatmap=["'][\s\S]*?<\/div>)(?![\s\S]*<\/(figure|div)>)/i,
+            ) || [])[0];
+            if (lastFragMatch) {
+              const meta = parseVizMeta(lastFragMatch);
+              const flags = {
+                canvas: /<figure[^>]*data-chart=/.test(lastFragMatch),
+                hasTitle: !!(meta.title && meta.title.trim()),
+                hasX: !!(meta.xTitle && meta.xTitle.trim()),
+                hasY: !!(meta.yTitle && meta.yTitle.trim()),
+                hasVals: meta.labelsLen > 0 && meta.dataLen > 0,
+              };
+              console.log(TAG, 'chart.debug.injected', key, {
+                kind: meta.kind,
+                type: meta.type,
+                title: meta.title,
+                xTitle: meta.xTitle,
+                yTitle: meta.yTitle,
+                labelsLen: meta.labelsLen,
+                dataLen: meta.dataLen,
+                flags,
+              });
+            } else {
+              console.log(TAG, 'chart.debug.injected', key, {
+                built: false,
+                reason: 'no fragment match',
+              });
+            }
+          } catch (e) {
+            console.log(TAG, 'chart.debug.error', key, String(e?.message || e));
+          }
+        } else {
+          console.log(TAG, 'section.viz.predictive.none', key);
+          // [KT:SURGICAL DEBUG] prove canvas/title/axes/values for the last injected fragment
+          try {
+            const lastFragMatch = (html.match(
+              /(<figure[^>]*data-chart=["'][\s\S]*?<\/figure>|<div[^>]*data-heatmap=["'][\s\S]*?<\/div>)(?![\s\S]*<\/(figure|div)>)/i,
+            ) || [])[0];
+            if (lastFragMatch) {
+              const meta = parseVizMeta(lastFragMatch);
+              const flags = {
+                canvas: /<figure[^>]*data-chart=/.test(lastFragMatch),
+                hasTitle: !!(meta.title && meta.title.trim()),
+                hasX: !!(meta.xTitle && meta.xTitle.trim()),
+                hasY: !!(meta.yTitle && meta.yTitle.trim()),
+                hasVals: meta.labelsLen > 0 && meta.dataLen > 0,
+              };
+              console.log(TAG, 'chart.debug.injected', key, {
+                kind: meta.kind,
+                type: meta.type,
+                title: meta.title,
+                xTitle: meta.xTitle,
+                yTitle: meta.yTitle,
+                labelsLen: meta.labelsLen,
+                dataLen: meta.dataLen,
+                flags,
+              });
+            } else {
+              console.log(TAG, 'chart.debug.injected', key, {
+                built: false,
+                reason: 'no fragment match',
+              });
+            }
+          } catch (e) {
+            console.log(TAG, 'chart.debug.error', key, String(e?.message || e));
+          }
+        }
+      } catch (e) {
+        console.log(TAG, 'section.viz.branch.error', key, String(e?.message || e));
+        // [KT:SURGICAL DEBUG] prove canvas/title/axes/values for the last injected fragment
+        try {
+          const lastFragMatch = (html.match(
+            /(<figure[^>]*data-chart=["'][\s\S]*?<\/figure>|<div[^>]*data-heatmap=["'][\s\S]*?<\/div>)(?![\s\S]*<\/(figure|div)>)/i,
+          ) || [])[0];
+          if (lastFragMatch) {
+            const meta = parseVizMeta(lastFragMatch);
+            const flags = {
+              canvas: /<figure[^>]*data-chart=/.test(lastFragMatch),
+              hasTitle: !!(meta.title && meta.title.trim()),
+              hasX: !!(meta.xTitle && meta.xTitle.trim()),
+              hasY: !!(meta.yTitle && meta.yTitle.trim()),
+              hasVals: meta.labelsLen > 0 && meta.dataLen > 0,
+            };
+            console.log(TAG, 'chart.debug.injected', key, {
+              kind: meta.kind,
+              type: meta.type,
+              title: meta.title,
+              xTitle: meta.xTitle,
+              yTitle: meta.yTitle,
+              labelsLen: meta.labelsLen,
+              dataLen: meta.dataLen,
+              flags,
+            });
+          } else {
+            console.log(TAG, 'chart.debug.injected', key, {
+              built: false,
+              reason: 'no fragment match',
+            });
+          }
+        } catch (e) {
+          console.log(TAG, 'chart.debug.error', key, String(e?.message || e));
+        }
+      }
+    }
+    /* commented out: direct assignment replaced by audited assignment */
+// /* commented out: direct assignment replaced by audited assignment */
+// /* commented out: direct assignment replaced by audited assignment */
+// /* commented out: direct assignment replaced by audited assignment */
+// sections[key] = html;
+sections[key] = __kt_auditSection(key, html);
+// sections[key] = __kt_auditSection(key, html); /* commented out: duplicate audited assignment */
+sections[key] = __kt_auditSection(key, html);
+  }
+
+  let phases = await derivePhasesFrom(sections.timeline, canon);
+  if (phases.length < 5) {
+    phases = [1, 2, 3, 4, 5].map((i) => ({
+      title: `Phase ${i}`,
+      caption:
+        i === 1 ? 'Kickoff & baselines' : i === 5 ? 'Sustain & scale' : 'Milestones & deliverables',
+    }));
+  }
+
+  console.log(TAG, 'appendix.build.start');
+  const appendicesHTML = buildAppendicesHTML(canon, sections);
+  console.log(TAG, 'appendix.build.done', { bytes: String(appendicesHTML || '').length });
+
+  let conclusionHTML = '';
+  try {
+    const res = await openai.chat.completions.create({
+      model: MODEL,
+      temperature: 1,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Return HTML only, a single <section id="conclusion">…</section> with 1–2 short paragraphs.',
+        },
+        {
+          role: 'user',
+          content: `Write a concise "Conclusion" for ${canon.orgName} based on the preceding sections. Max two paragraphs, max two sentences per paragraph, <= 20 words each.`,
+        },
+      ],
+    });
+    conclusionHTML = (res.choices?.[0]?.message?.content || '').trim();
+    if (!/id=["']conclusion["']/.test(conclusionHTML)) {
+      conclusionHTML =
+        '<section id="conclusion"><h3>Conclusion</h3><p>Initiatives deliver material value within the horizon. Execution discipline, measurement, and change management determine outcomes.</p></section>';
+    }
+  } catch (e) {
+    console.log(TAG, 'conclusion.error', String(e?.message || e));
+  }
+
+  let html = buildReformReportHTML({ canon, sections, phases, planDiagramHTML, implKit: {} });
+  html =
+    String(html).replace(
+      /<section id=["']appendices["'][\s\S]*?<\/section>/i,
+      appendicesHTML || '$&',
+    ) +
+    '\n' +
+    conclusionHTML;
+
+  // === Audit moved to end (post-template) per your instruction ===
+/* commented out: end-of-pipeline global polish moved to per-section audit for consistency */
+// html = await polishMcKinsey(html, canon);
+/* [KT:MARGINS] injected */
+const __KT_MARGIN_CSS = `<style id="kt-format">
+  @page { margin: 0.5in; }
+  body { margin: 0 auto; padding: 0 0.5in; }
+  .report-container{ max-width: 72ch; margin: 0 auto; }
+  .table-wrap{ overflow-x: auto; }
+</style>`;
+if (/<\/head>/i.test(html)) {
+  html = html.replace(/<\/head>/i, __KT_MARGIN_CSS + '</head>');
+
+} else {
+  html = __KT_MARGIN_CSS 
+ + html;
+}
+const sectionsWords = wc(Object.values(sections).join(' '));
+  const htmlWords = wc(html);
+  console.log('[KT-AUDIT] all-sections', 'completed');
+console.log(TAG, 'generate.done', { sectionsWords, htmlWords, target: canon.minWords });
+
+  return NextResponse.json({ ok: true, html, wordCount: sectionsWords, htmlWordCount: htmlWords });
+}
+
+/* ==========================================================================
+   Implementation Kit JSON (appendices) — transplanted from Oct 9 5:22 PM
+   NOTE: Surgical addition; no deletions to existing code. MODEL and openai
+   must already be in scope from surrounding generate module.
+   ========================================================================== */
+/* Implementation Kit JSON (appendices only) */
+async function genImplKitJSON(canon, sections){
+  try{
+    const res = await openai.chat.completions.create({
+      model: MODEL,
+      temperature: 1,
+      messages: [
+        { role:'system', content:'Return strict JSON only. No prose.' },
+        { role:'user',   content: 
+`You are producing JSON only (no prose). Build an Implementation Kit from the report content.
+
+Return exactly this shape:
+{
+  "charters": [ { "name": "...", "objective": "...", "scopeIn": "...", "scopeOut": "...", "owner": "...",
+                  "stakeholders": ["..."], "milestones":[{"milestone":"...","due":"..."}],
+                  "kpis":[{"kpi":"...","baseline":0,"target":0,"source":"..."}],
+                  "risks":[{"risk":"...","mitigation":"...","owner":"..."}],
+                  "budgetSummary":"...", "acceptanceCriteria":"..." } ],
+  "raci": { "items":[{"decision":"...","R":"...","A":"...","C":["..."],"I":["..."],"SLA":"..."}] },
+  "raid": { "items":[{"type":"Risk|Assumption|Issue|Dependency","description":"...","owner":"...","",
+                      "impact":"...","probability":"...","trigger":"...","mitigation":"...","",
+                      "status":"...","nextReview":"..."}] },
+  "benefits": { "lines":[{"workstream":"...","lever":"...","unitAssumption":"...","",
+                          "source":"...","volume":0,"rate":0,"monthlyImpact":0,"",
+                          "confidence":"Low|Medium|High","startMonth":"M1","runRateMonth":"M3","oneOffCost":0}] },
+  "plan100": { "weeks":[{"week":"W1","workstream":"...","task":"...","owner":"...","status":"Planned"}] },
+  "pilot": { "name":"...", "locations":10, "successKPIs":["..."], "thresholds":["..."],
+             "sampleDesign":"...", "rollbackCriteria":"..." },
+  "assumptions": { "items":[{"name":"...","value":0,"unit":"...","low":0,"high":0,"note":"..."}] },
+  "methods": { "benchmarks":[{"name":"...","source":"...","date":"YYYY-MM","notes":"..."}],
+               "sources":["...","..."] }
+}` }
+      ]
+    });
+    const raw = (res?.choices?.[0]?.message?.content ?? '').trim();
+    try{
+      return JSON.parse(raw);
+    }catch(e){
+      console.warn('[genImplKitJSON] JSON parse failed; returning empty shell', e);
+      return { charters: [], raci: {items:[]}, raid:{items:[]}, benefits:{lines:[]}, plan100:{weeks:[]},
+               pilot:{name:'',locations:0,successKPIs:[],thresholds:[],sampleDesign:'',rollbackCriteria:''},
+               assumptions:{items:[]}, methods:{benchmarks:[], sources:[]} };
+    }
+  }catch(err){
+    console.error('[genImplKitJSON] OpenAI call failed', err);
+    return { charters: [], raci: {items:[]}, raid:{items:[]}, benefits:{lines:[]}, plan100:{weeks:[]},
+             pilot:{name:'',locations:0,successKPIs:[],thresholds:[],sampleDesign:'',rollbackCriteria:''},
+             assumptions:{items:[]}, methods:{benchmarks:[], sources:[]} };
+  }
+}

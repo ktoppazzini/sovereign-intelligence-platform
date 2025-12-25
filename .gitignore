@@ -1,0 +1,300 @@
+﻿# Node / Next
+node_modules/
+.next/
+out/
+dist/
+.build/
+.cache/
+.turbo/
+.vercel/
+coverage/
+npm-debug.log*
+yarn-*.log
+pnpm-lock.yaml
+*.log
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local env & secrets (NEVER commit)
+.env
+.env.local
+.env.*.local
+.env.local*
+env.local*
+
+# Backups (too many, bloats repo)
+BACKUP*/
+backups*/
+*.backup*
+*.bak*
+*_BEFORE*.js
+*_AFTER*.js
+_backups/
+pre-restore-*/
+
+# Archives
+*.zip
+*.7z
+*.mp4
+*.mov
+*.avi
+*.iso
+*.psd
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+CodeChunks*.db*
+SemanticSymbols*.db*
+
+# VS Code workspace state
+VSWorkspaceState*.json
+workspaceFileList.bin
+*.vsidx
+.vs/
+
+# Webpack hot updates
+*.hot-update.json
+*.hot-update.js
+
+# Pack files
+*.pack.gz
+*.pack_*.gz
+index.pack*
+
+# UUID files
+[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-*
+
+# Chat and log files (private)
+Agent*.txt
+Chat*.txt
+Claude*.txt
+*chat*.txt
+*log*.txt
+logs/
+Translation Chat History.txt
+*History.txt
+To dos/
+
+# Temp Word files
+~$*.docx
+
+# Windows store build
+windows-store/
+store-assets/
+
+# Build artifacts (loose)
+*.wsuo
+_1.wsuo
+FETCH_HEAD
+HEAD_*
+trace/
+*.traineddata
+slnx*.sqlite
+
+# Documentation with example API keys
+TRILLION-DOLLAR-IMPLEMENTATION.md
+FUNDRAISING/
+
+# Nested duplicate
+SOVEREIGN-INTELLIGENCE-MVP/
+
+# Misc generated
+extracted-reform-text.txt
+english-terms-found.json
+scan-output.txt
+client/
+
+# Generated reports (test)
+*-verification-report.html
+*-verification-test.mjs
+
+# Webpack loose bundles
+*.js.map
+canvg.js
+dompurify.js
+jspdf.js
+html2canvas.js
+openai.js
+core-js.js
+fflate.js
+fast-png.js
+iobuffer.js
+rgbcolor.js
+stackblur-canvas.js
+svg-pathdata.js
+polyfills.js
+raf.js
+performance-now.js
+webpack*.js
+edge-runtime-webpack.js
+middleware_1.js
+main-app.js
+segment.js
+next bad.js
+@babel.js
+@swc.js
+_app-pages-browser*.js
+app-pages-internals.js
+
+# Build manifests (loose)
+*-manifest.json
+*-manifest.js
+app-build-manifest.json
+routes-manifest.json
+middleware-manifest.json
+build-manifest.json
+react-loadable-manifest.json
+*_client-reference-manifest.js
+
+# Loose route files
+route.js
+route_*.js
+page.js
+page_*.js
+layout.js
+layout.ts
+page.ts
+page.jsx
+not-found.js
+
+# Loose pages
+*_page.jsx
+*_page.js
+
+# Additional loose files
+*.css
+*.json
+!package.json
+!package-lock.json
+!next.config.js
+!jsconfig.json
+!tsconfig.json
+!vercel.json
+!capacitor.config.json
+!twa-manifest.json
+
+# Scripts (keep originals in scripts/)
+*.mjs
+*.cjs
+!scripts/*.mjs
+!scripts/*.cjs
+!scripts/*.js
+
+# PowerShell deploy
+*.ps1
+*.sh
+!scripts/*.ps1
+!scripts/*.sh
+
+# Old backups
+__backup__/
+styles/
+utils/
+
+# Reform temp files
+Reform Report*.txt
+Reform Report*.jpeg
+Reform Report*.docx
+Reform Report*.pdf
+Report Template*.txt
+Payload*.txt
+DocumentLayout.json
+
+# Clinical/test data
+Clinical*.txt
+Clinical*.csv
+
+# Markdown guides (external)
+*-GUIDE*.md
+*-SUMMARY*.md
+*-REFERENCE*.md
+*-ANALYSIS*.md
+*-QUICK*.md
+*-FIX*.md
+*-FIXES*.md
+*-LOG*.md
+*-INSTRUCTIONS*.md
+*-CHECKLIST*.md
+*-APPLICATION*.md
+*-MODEL*.md
+*-QUALITY*.md
+*-DEBUG*.md
+INTEGRATION-SUMMARY.md
+COMPLIANCE-DOCUMENTATION.md
+CODEBASE_BRIEF.md
+HANDOFF_DOCUMENT*.md
+PHASE-CIRCLE*.md
+TIMESTAMP-IMPLEMENTATION*.md
+BEFORE-AFTER*.md
+CHANGES-BACKUP*.md
+VARIABLE-AUDIT*.md
+DYNAMIC_CONTENT*.md
+PITCH-DECK.md
+EXECUTIVE-SUMMARY*.md
+COLD-OUTREACH*.md
+ACCELERATORS*.md
+
+# ISO language files
+ISO*.csv
+Languages*.csv
+
+# Test files
+test-*.html
+test-*.js
+test-*.mjs
+generate-and-scan.mjs
+scan-*.mjs
+clean-*.mjs
+unified-*.mjs
+final-*.mjs
+comprehensive-*.mjs
+comprehensive-*.html
+standalone-*.html
+index
+
+# Debug
+DROPDOWN-*.js
+DROPDOWN-*.md
+VERIFY-*.js
+EXTRACT-*.ps1
+clear cache.txt
+clear-report-cache*.ps1
+
+# Images
+image.png
+
+# Old config versions
+package_*.json
+*.json.old
+
+# Predictive files (loose)
+predictive*.js
+pharma-predictive-dashboard.jsx
+enterprise-predictive-dashboard.jsx
+defense-predictive-dashboard.jsx
+*-WITH-PREDICTIVE.js
+
+# Deprecated form clients
+*Form.client.jsx
+!app/**/Form.client.jsx
+!components/*Form.client.jsx
+
+# Deprecated shells/pages
+NonHomeShell.client.jsx
+PredictiveInsights.client.jsx
+
+# Vertical configs (loose)
+verticalConfig.js
+
+# Specific report stuff
+reportGraphs.js
+
+# Server reference
+server-reference-manifest.*

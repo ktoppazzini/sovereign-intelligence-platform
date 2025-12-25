@@ -1,0 +1,48 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+
+export default function Header() {
+  const pathname = usePathname();
+
+  // Hide Header on pages that already have their own shell/nav
+  const HIDE_ON = ['/', '/assistant', '/dashboard', '/reform-report'];
+  const shouldHide = HIDE_ON.some(
+    p => pathname === p || pathname.startsWith(p + '/')
+  );
+  if (shouldHide) return null;
+
+  // Minimal header for any other routes (safe modern Link usage)
+  const links = [
+    { href: '/', label: 'Home' },
+    { href: '/about', label: 'About' },
+    { href: '/services', label: 'Services' },
+    { href: '/contact', label: 'Contact' },
+  ];
+
+  return (
+    <header style={{ padding: '10px 16px', borderBottom: '1px solid #223247', background: '#0b1623' }}>
+      <nav style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+        {links.map(link => {
+          const isActive = pathname === link.href || pathname.startsWith(link.href + '/');
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`navlink ${isActive ? 'active' : ''}`}
+              style={{
+                padding: '6px 10px',
+                borderRadius: 8,
+                fontWeight: 700,
+                textDecoration: isActive ? 'underline' : 'none'
+              }}
+            >
+              {link.label}
+            </Link>
+          );
+        })}
+      </nav>
+    </header>
+  );
+}

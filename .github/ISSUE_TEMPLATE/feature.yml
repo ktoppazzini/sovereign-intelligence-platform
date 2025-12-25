@@ -1,0 +1,13 @@
+﻿name: Feature request
+description: Suggest an idea
+labels: ["enhancement","P3"]
+body:
+  - type: input
+    id: goal
+    attributes: { label: Goal / outcome }
+  - type: textarea
+    id: details
+    attributes: { label: Details / acceptance criteria }
+  - type: dropdown
+    id: priority
+    attributes: { label: Priority, options: [P0, P1, P2, P3] }

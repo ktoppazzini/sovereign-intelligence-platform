@@ -1,0 +1,28 @@
+
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      
+      "@/*": ["*"],
+      "@/app/*": ["app/*"],
+      "@/lib/*": ["lib/*"],
+      "@components/*": ["components/*"]
+
+    },
+    "allowJs": true,
+    "checkJs": false,
+    "jsx": "preserve",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+    "types": [],
+    "typeRoots": []
+  },
+  "typeAcquisition": {
+    "enable": false
+  },
+  "exclude": ["node_modules", ".next", "out"]
+}

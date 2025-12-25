@@ -1,0 +1,506 @@
+// app/defense-plan/DefensePlanForm.client.jsx
+'use client';
+
+/**
+ * Defense Plan form — keeps original page layout/style, but replaces
+ * "Assets" with **Asset Type** (dropdown) and adds **Improved Military Capability**
+ * (dropdown). Countries dropdown is populated from /api/reform/options.
+ * Capability + Asset Type dropdowns are populated from /api/defense/options.
+ *
+ * Right column shows a live HTML preview; the Upload block is kept beneath it.
+ * Buttons follow the same numbered pattern as the Reform form.
+ */
+
+import { useEffect, useRef, useState } from 'react';
+import styles from '../reform-report/ReformReport.module.css';
+
+// ---------------------- tiny debug helpers -----------------------------------
+const DEBUG_NS = 'SR:DEFENSE';
+const log = (...a) => console.log(`[${DEBUG_NS}]`, ...a);
+const warn = (...a) => console.warn(`[${DEBUG_NS}]`, ...a);
+
+// ---------------------- helper: brand-accent pill styling --------------------
+function parseColor(c) {
+  if (!c) return { r: 59, g: 130, b: 246 };
+  const m = c.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+  if (m) return { r: +m[1], g: +m[2], b: +m[3] };
+  const h = (c || '').replace('#', '').trim();
+  const hx = (p) => parseInt(p, 16);
+  if (/^[0-9a-f]{3}$/i.test(h))
+    return { r: hx(h[0] + h[0]), g: hx(h[1] + h[1]), b: hx(h[2] + h[2]) };
+  if (/^[0-9a-f]{6}$/i.test(h))
+    return { r: hx(h.slice(0, 2)), g: hx(h.slice(2, 4)), b: hx(h.slice(4, 6)) };
+  return { r: 59, g: 130, b: 246 };
+}
+const clamp = (n, min = 0, max = 255) => Math.max(min, Math.min(max, n));
+function shade(c, pct) {
+  const { r, g, b } = parseColor(c);
+  const t = pct >= 0 ? 255 : 0;
+  const p = Math.abs(pct);
+  const nr = Math.round((t - r) * p + r),
+    ng = Math.round((t - g) * p + g),
+    nb = Math.round((t - b) * p + b);
+  return `rgb(${clamp(nr)}, ${clamp(ng)}, ${clamp(nb)})`;
+}
+function useAccent() {
+  const [acc, setAcc] = useState('#3b82f6');
+  useEffect(() => {
+    const root = getComputedStyle(document.documentElement);
+    const v = (
+      root.getPropertyValue('--si-accent') ||
+      root.getPropertyValue('--brand-accent') ||
+      ''
+    ).trim();
+    if (v) setAcc(v);
+  }, []);
+  return acc;
+}
+
+// ---------------------- options fetchers -------------------------------------
+async function fetchJSON(url) {
+  const r = await fetch(url, { cache: 'no-store' });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j?.error || `${url} failed: ${r.status}`);
+  return j || {};
+}
+
+function useDropdownOptions() {
+  const [countries, setCountries] = useState([]);
+  const [capabilities, setCaps] = useState([]);
+  const [assetTypes, setAssets] = useState([]);
+
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      try {
+        const j1 = await fetchJSON('/api/reform/options');
+        if (!dead) setCountries(Array.isArray(j1?.countries) ? j1.countries : []);
+      } catch (e) {
+        warn('countries:', e.message);
+      }
+      try {
+        const j2 = await fetchJSON('/api/defense/options');
+        if (!dead) {
+          const caps = Array.isArray(j2?.capabilities) ? j2.capabilities : [];
+          const assets = Array.isArray(j2?.assetTypes) ? j2.assetTypes : [];
+          setCaps(caps);
+          setAssets(assets);
+        }
+      } catch (e) {
+        warn('defense options:', e.message);
+      }
+    })();
+    return () => {
+      dead = true;
+    };
+  }, []);
+
+  return { countries, capabilities, assetTypes };
+}
+
+// ---------------------- component -------------------------------------------
+export default function DefensePlanForm() {
+  const { countries, capabilities, assetTypes } = useDropdownOptions();
+  const accent = useAccent();
+  const pillBg = shade(accent, -0.55);
+  const pillHover = shade(accent, -0.45);
+  const pillBr = shade(accent, -0.2);
+  const navBtnBase = {
+    backgroundColor: pillBg,
+    color: '#E6F0FF',
+    borderRadius: 12,
+    padding: '10px 16px',
+    border: `1px solid ${pillBr}`,
+    boxShadow: '0 0 0 1px rgba(255,255,255,.06) inset',
+    fontWeight: 600,
+    lineHeight: 1.1,
+    transition: 'background-color .15s, border-color .15s',
+  };
+  const navBtnDisabled = { opacity: 0.7, cursor: 'not-allowed' };
+  const navBtnDone = { backgroundColor: '#124A2A', borderColor: '#15613A', color: '#E8FFF1' };
+
+  const [form, setForm] = useState({
+    preparedFor: '',
+    preparedBy: '',
+    country: '',
+    improvedCapability: '', // dropdown
+    assetType: '', // dropdown
+    objective: '',
+    constraints: '',
+    timeFrame: '36 months',
+    approverEmail: '',
+    yourEmail: '',
+    files: [],
+  });
+  const on = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
+
+  // Upload support (kept)
+  const fileRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedList, setUploadedList] = useState([]);
+  async function uploadSelectedFiles(files) {
+    if (!files?.length) return [];
+    const fd = new FormData();
+    [...files].forEach((f) => fd.append('file', f, f.name));
+    const r = await fetch('/api/uploads', { method: 'POST', body: fd });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j?.error) throw new Error(j?.error || 'Upload failed');
+    const list = Array.isArray(j.files) ? j.files : j.urls || [];
+    return list.map((u) => (typeof u === 'string' ? { url: u, filename: u.split('/').pop() } : u));
+  }
+  async function doUpload(files) {
+    try {
+      setUploading(true);
+      const saved = await uploadSelectedFiles(files);
+      setUploadedList(saved);
+      setForm((f) => ({ ...f, files: saved }));
+    } catch (e) {
+      warn('upload:', e.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  // Actions
+  const [busy, setBusy] = useState({ gen: false, exp: false, fin: false, sub: false });
+  const [done, setDone] = useState({ gen: false, exp: false, fin: false, sub: false });
+  const [html, setHtml] = useState('');
+  const [pdfUrl, setPdf] = useState('');
+
+  async function onGenerate() {
+    try {
+      setBusy((p) => ({ ...p, gen: true }));
+      setDone((p) => ({ ...p, gen: false }));
+      const r = await fetch('/api/aws/defense-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const j = await r.json();
+      if (!j?.ok) throw new Error(j?.error || 'generate failed');
+      setHtml(j.html || '');
+      setDone((p) => ({ ...p, gen: true }));
+    } catch (e) {
+      alert(String(e?.message || e));
+    } finally {
+      setBusy((p) => ({ ...p, gen: false }));
+    }
+  }
+
+  async function onExport() {
+    try {
+      setBusy((p) => ({ ...p, exp: true }));
+      setDone((p) => ({ ...p, exp: false }));
+      const r = await fetch('/api/reform/export-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html }),
+      });
+      const j = await r.json();
+      if (!j?.ok || !j?.downloadUrl) throw new Error(j?.error || 'export failed');
+      setPdf(j.downloadUrl);
+      // auto-download
+      const a = document.createElement('a');
+      a.href = j.downloadUrl;
+      a.download = 'Defense_Plan.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setDone((p) => ({ ...p, exp: true }));
+    } catch (e) {
+      alert(String(e?.message || e));
+    } finally {
+      setBusy((p) => ({ ...p, exp: false }));
+    }
+  }
+
+  async function onFinalize() {
+    try {
+      setBusy((p) => ({ ...p, fin: true }));
+      setDone((p) => ({ ...p, fin: false }));
+      const r = await fetch('/api/reform/finalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rid: 'defense', html }),
+      });
+      const j = await r.json();
+      if (!j?.ok) throw new Error(j?.error || 'finalize failed');
+      localStorage.setItem('SI_FINALIZE', JSON.stringify(j));
+      setDone((p) => ({ ...p, fin: true }));
+    } catch (e) {
+      alert(String(e?.message || e));
+    } finally {
+      setBusy((p) => ({ ...p, fin: false }));
+    }
+  }
+
+  async function onSubmit() {
+    try {
+      setBusy((p) => ({ ...p, sub: true }));
+      setDone((p) => ({ ...p, sub: false }));
+      let pdfKey = '';
+      if (pdfUrl) {
+        const r = await fetch('/api/reform/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dataUrl: pdfUrl, rid: 'defense' }),
+        });
+        const j = await r.json();
+        if (!j?.ok) throw new Error(j?.error || 'upload failed');
+        pdfKey = j.key;
+      }
+      const saved = JSON.parse(localStorage.getItem('SI_FINALIZE') || '{}');
+      const payload = {
+        rid: 'defense',
+        requestedBy: form.yourEmail || 'author',
+        approverEmail: form.approverEmail || '',
+        meta: {
+          pdfKey: pdfKey || saved?.pdfKey || '',
+          htmlKey: saved?.htmlKey || '',
+          words: saved?.words || 0,
+          sha256: saved?.sha256 || '',
+        },
+      };
+      const s = await fetch('/api/reform/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const sj = await s.json();
+      if (!sj?.ok) throw new Error(sj?.error || 'submit failed');
+      setDone((p) => ({ ...p, sub: true }));
+    } catch (e) {
+      alert(String(e?.message || e));
+    } finally {
+      setBusy((p) => ({ ...p, sub: false }));
+    }
+  }
+
+  // ---------------------- render --------------------------------------------
+  return (
+    <div className={styles.card}>
+      <h1 className={styles.title}>Defense Plan</h1>
+
+      <div className={styles.cardGrid}>
+        {/* Left column: fields */}
+        <div className={styles.leftCol}>
+          <div className={styles.formStack}>
+            <label className={styles.label}>Prepared For</label>
+            <input className={styles.input} value={form.preparedFor} onChange={on('preparedFor')} />
+          </div>
+
+          <div className={styles.formStack}>
+            <label className={styles.label}>Prepared By</label>
+            <input className={styles.input} value={form.preparedBy} onChange={on('preparedBy')} />
+          </div>
+
+          <div className={styles.formStack}>
+            <label className={styles.label}>Country</label>
+            <select className={styles.input} value={form.country} onChange={on('country')}>
+              <option value="">Select a country…</option>
+              {countries.map((c, i) => (
+                <option key={i} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className={styles.formStack}>
+            <label className={styles.label}>Improved Military Capability</label>
+            <select
+              className={styles.input}
+              value={form.improvedCapability}
+              onChange={on('improvedCapability')}
+            >
+              <option value="">Select a capability…</option>
+              {capabilities.map((c, i) => (
+                <option key={i} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className={styles.formStack}>
+            <label className={styles.label}>Asset Type</label>
+            <select className={styles.input} value={form.assetType} onChange={on('assetType')}>
+              <option value="">Select an asset type…</option>
+              {assetTypes.map((a, i) => (
+                <option key={i} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className={styles.formStack}>
+            <label className={styles.label}>Objective</label>
+            <input className={styles.input} value={form.objective} onChange={on('objective')} />
+          </div>
+
+          <div className={styles.formStack}>
+            <label className={styles.label}>Constraints</label>
+            <input className={styles.input} value={form.constraints} onChange={on('constraints')} />
+          </div>
+
+          <div className={styles.formStack}>
+            <label className={styles.label}>Time Frame</label>
+            <input className={styles.input} value={form.timeFrame} onChange={on('timeFrame')} />
+          </div>
+
+          {/* Numbered actions */}
+          <div className={styles.actions} style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className={styles.navButton}
+              style={{
+                ...(done.gen ? { ...navBtnBase, ...navBtnDone } : navBtnBase),
+                ...(busy.gen ? navBtnDisabled : null),
+              }}
+              onClick={onGenerate}
+              onMouseEnter={(e) => {
+                if (!done.gen && !busy.gen) e.currentTarget.style.backgroundColor = pillHover;
+              }}
+              onMouseLeave={(e) => {
+                if (!done.gen && !busy.gen) e.currentTarget.style.backgroundColor = pillBg;
+              }}
+              disabled={busy.gen}
+            >
+              {done.gen ? '1- Generated' : busy.gen ? '1- Generating…' : '1- Generate'}
+            </button>
+
+            <button
+              type="button"
+              className={styles.navButton}
+              style={{
+                ...(done.exp ? { ...navBtnBase, ...navBtnDone } : navBtnBase),
+                ...(busy.exp ? navBtnDisabled : null),
+              }}
+              onClick={onExport}
+              onMouseEnter={(e) => {
+                if (!done.exp && !busy.exp) e.currentTarget.style.backgroundColor = pillHover;
+              }}
+              onMouseLeave={(e) => {
+                if (!done.exp && !busy.exp) e.currentTarget.style.backgroundColor = pillBg;
+              }}
+              disabled={busy.exp || !html}
+            >
+              {done.exp ? '2- Exported' : busy.exp ? '2- Exporting…' : '2- Export to PDF'}
+            </button>
+
+            <button
+              type="button"
+              className={styles.navButton}
+              style={{
+                ...(done.fin ? { ...navBtnBase, ...navBtnDone } : navBtnBase),
+                ...(busy.fin ? navBtnDisabled : null),
+              }}
+              onClick={onFinalize}
+              onMouseEnter={(e) => {
+                if (!done.fin && !busy.fin) e.currentTarget.style.backgroundColor = pillHover;
+              }}
+              onMouseLeave={(e) => {
+                if (!done.fin && !busy.fin) e.currentTarget.style.backgroundColor = pillBg;
+              }}
+              disabled={busy.fin || !html}
+            >
+              {done.fin ? '3- Finalized' : '3- Finalize'}
+            </button>
+
+            <button
+              type="button"
+              className={styles.navButton}
+              style={{
+                ...(done.sub ? { ...navBtnBase, ...navBtnDone } : navBtnBase),
+                ...(busy.sub ? navBtnDisabled : null),
+              }}
+              onClick={onSubmit}
+              onMouseEnter={(e) => {
+                if (!done.sub && !busy.sub) e.currentTarget.style.backgroundColor = pillHover;
+              }}
+              onMouseLeave={(e) => {
+                if (!done.sub && !busy.sub) e.currentTarget.style.backgroundColor = pillBg;
+              }}
+              disabled={busy.sub || !html}
+            >
+              {done.sub ? '4- Submitted' : '4- Submit for Approval'}
+            </button>
+          </div>
+        </div>
+
+        {/* Right column: Preview + Upload */}
+        <div className={styles.rightCol}>
+          <fieldset className={styles.uploadFieldset}>
+            <legend>Preview</legend>
+            <iframe
+              id="si-defense-preview"
+              title="Defense Plan Preview"
+              srcDoc={html}
+              style={{
+                width: '100%',
+                height: 520,
+                background: '#0e1b2b',
+                border: '1px solid #223247',
+                borderRadius: 10,
+              }}
+            />
+          </fieldset>
+
+          <fieldset className={styles.uploadFieldset} style={{ marginTop: 12 }}>
+            <legend>Upload Documents</legend>
+
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.txt,.rtf"
+              hidden
+              onChange={async (e) => {
+                const files = Array.from(e.target.files || []);
+                if (files.length) await doUpload(files);
+                else setUploadedList([]);
+              }}
+            />
+
+            <button
+              type="button"
+              className={styles.navButton}
+              style={{ ...navBtnBase, ...(uploading ? navBtnDisabled : null) }}
+              onClick={() => fileRef.current?.click()}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = pillHover;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = pillBg;
+              }}
+              disabled={uploading}
+            >
+              Choose Files
+            </button>
+
+            <div className={styles.smallNote} style={{ marginTop: 8 }}>
+              {(uploadedList?.length || 0).toString()} file(s) attached
+            </div>
+
+            {uploadedList?.length ? (
+              <ul className={styles.smallNote} style={{ marginTop: 8, paddingLeft: 18 }}>
+                {uploadedList.map((u, i) => (
+                  <li key={i}>
+                    {u.url ? (
+                      <a href={u.url} target="_blank" rel="noreferrer">
+                        {u.filename || 'file'}
+                      </a>
+                    ) : (
+                      u.filename || 'file'
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </fieldset>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,53 @@
+{
+  "host": "sovereign.ai",
+  "name": "Sovereign Intelligence",
+  "display": "standalone",
+  "themeColor": "#0a1628",
+  "navigationColor": "#0a1628",
+  "navigationColorDark": "#050d17",
+  "navigationDividerColor": "#1a2d4a",
+  "navigationDividerColorDark": "#0d1f35",
+  "backgroundColor": "#0a1628",
+  "enableNotifications": true,
+  "enableSiteSettingsShortcut": false,
+  "startUrl": "/",
+  "iconUrl": "/icons/icon-512x512.png",
+  "maskableIconUrl": "/icons/maskable-512x512.png",
+  "splashScreenFadeOutDuration": 300,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "shortName": "Dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icons/dashboard.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Reform Engine",
+      "shortName": "Reform",
+      "url": "/reform",
+      "icons": [{ "src": "/icons/reform-engine.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "AI Assistant",
+      "shortName": "Assistant",
+      "url": "/assistant",
+      "icons": [{ "src": "/icons/assistant.png", "sizes": "96x96" }]
+    }
+  ],
+  "signing": {
+    "keyPath": "release.keystore",
+    "alias": "sovereign"
+  },
+  "packageId": "com.sovereign.intelligence",
+  "appVersionCode": 1,
+  "appVersionName": "2.0.0",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "orientation": "any",
+  "fullscreen": false,
+  "generatorApp": "pwabuilder",
+  "webManifestUrl": "https://sovereign.ai/manifest.json"
+}
