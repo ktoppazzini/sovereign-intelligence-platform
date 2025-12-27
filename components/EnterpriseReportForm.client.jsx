@@ -28,6 +28,14 @@ const WORKFLOW_STATES = {
 };
 
 export default function EnterpriseReportForm({ verticalId, lang, ui, onReportGenerated }) {
+  // [KT:DIAGNOSTIC] Log component props immediately on mount/render
+  console.log('🚀 [EnterpriseReportForm] Component loaded with props:', { 
+    verticalId, 
+    lang, 
+    hasUi: !!ui,
+    hasOnReportGenerated: !!onReportGenerated 
+  });
+  
   const config = getReportConfig(verticalId);
   const verticalRoles = getVerticalRoles(verticalId);
   
@@ -410,7 +418,15 @@ export default function EnterpriseReportForm({ verticalId, lang, ui, onReportGen
         ? '/api/reform/generate' 
         : '/api/enterprise/generate-full-report';
       
-      console.log('[EnterpriseReport] Calling API:', { verticalId, apiEndpoint, lang });
+      console.log('🎯 [CRITICAL-ROUTING-DECISION] API Endpoint Selection:', { 
+        verticalId, 
+        verticalIdType: typeof verticalId,
+        isReform: verticalId === 'reform',
+        exactMatch: verticalId === 'reform',
+        apiEndpoint,
+        lang,
+        timestamp: new Date().toISOString()
+      });
       
       const res = await fetch(apiEndpoint, {
         method: 'POST',
