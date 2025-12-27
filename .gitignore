@@ -298,3 +298,7 @@ reportGraphs.js
 
 # Server reference
 server-reference-manifest.*
+
+# Secret files
+BACKUP-*.env.local
+STRIPE-SETUP-GUIDE.env.example
