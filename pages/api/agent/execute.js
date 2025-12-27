@@ -263,7 +263,7 @@ Respond helpfully. If you took an action, explain what you did and the results.
 If the user asks you to do something, either do it or explain what you would do.`;
 
         const completion = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
+          model: process.env.OPENAI_MODEL || 'gpt-5-nano-2025-08-07',
           messages: [
             { role: 'system', content: systemPrompt },
             ...conversationHistory.slice(-10),

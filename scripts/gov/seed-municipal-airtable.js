@@ -105,7 +105,7 @@ async function getFixedTranslations(lang) {
     method: 'POST',
     headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: process.env.OPENAI_MODEL || 'gpt-5-nano-2025-08-07',
       temperature: 0.2,
       messages: [
         {

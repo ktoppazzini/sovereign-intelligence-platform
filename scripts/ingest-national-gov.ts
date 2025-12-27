@@ -122,7 +122,7 @@ async function translateFixed(label: string, lang: string): Promise<string> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: process.env.OPENAI_MODEL || 'gpt-5-nano-2025-08-07',
         temperature: 0.2,
         messages: [
           {
