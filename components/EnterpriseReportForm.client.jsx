@@ -403,8 +403,16 @@ export default function EnterpriseReportForm({ verticalId, lang, ui, onReportGen
         minWords: 20000,
       };
       
-      // First try the full AI report API
-      const res = await fetch('/api/enterprise/generate-full-report', {
+      // [KT:VERTICAL-ROUTING] Route to correct API based on vertical
+      // Reform vertical uses dedicated /api/reform/generate with full translation support
+      // Other verticals use /api/enterprise/generate-full-report
+      const apiEndpoint = verticalId === 'reform' 
+        ? '/api/reform/generate' 
+        : '/api/enterprise/generate-full-report';
+      
+      console.log('[EnterpriseReport] Calling API:', { verticalId, apiEndpoint, lang });
+      
+      const res = await fetch(apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -421,20 +429,22 @@ export default function EnterpriseReportForm({ verticalId, lang, ui, onReportGen
         }
       }
       
-      // Fallback to basic API
-      console.log('[EnterpriseReport] Falling back to basic API');
-      const basicRes = await fetch('/api/enterprise/generate-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (basicRes.ok) {
-        const data = await basicRes.json();
-        if (data.html) { 
-          setGeneratedReportHtml(data.html);
-          onReportGenerated(data.html); 
-          setLoading(false); 
-          return; 
+      // Fallback to basic API (only for non-reform verticals)
+      if (verticalId !== 'reform') {
+        console.log('[EnterpriseReport] Falling back to basic API');
+        const basicRes = await fetch('/api/enterprise/generate-report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (basicRes.ok) {
+          const data = await basicRes.json();
+          if (data.html) { 
+            setGeneratedReportHtml(data.html);
+            onReportGenerated(data.html); 
+            setLoading(false); 
+            return; 
+          }
         }
       }
     } catch (e) { console.error('[EnterpriseReport] Generation error:', e); }
