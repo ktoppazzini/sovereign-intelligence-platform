@@ -1,4 +1,5 @@
 // File: /pages/api/airtable-languages.js
+import { ensureTranslatedResponse } from '../../lib/dynamicTranslation';
 
 export default async function handler(req, res) {
   const apiKey = process.env.AIRTABLE_API_KEY;

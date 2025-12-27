@@ -1,0 +1,20 @@
+Field Name,Field Type,Description,Options/Formula
+id,Auto Number,Primary key,
+evidence_id,Single Line Text,Unique evidence ID,
+framework,Single Select,Compliance framework,"SOC2,HIPAA,GDPR,FEDRAMP,PCI-DSS"
+control_id,Single Line Text,Control identifier (e.g. CC6.1),
+control_name,Single Line Text,Control name,
+evidence_type,Single Select,Type of evidence,"policy,procedure,screenshot,log_sample,configuration,attestation,report"
+title,Single Line Text,Evidence title,
+description,Long Text,Evidence description,
+file_url,URL,Link to evidence file,
+file_name,Single Line Text,Original filename,
+collected_at,Date,When evidence was collected,
+collected_by,Email,Who collected evidence,
+valid_from,Date,Evidence validity start,
+valid_until,Date,Evidence validity end,
+status,Single Select,Evidence status,"current,archived,expired,superseded"
+audit_period,Single Line Text,Audit period (e.g. 2025-Q4),
+reviewer_notes,Long Text,Auditor/reviewer notes,
+last_reviewed_at,Date,Last review date,
+last_reviewed_by,Email,Last reviewer,

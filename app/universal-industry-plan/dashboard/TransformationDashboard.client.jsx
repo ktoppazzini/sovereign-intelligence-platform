@@ -426,42 +426,204 @@ export default function TransformationDashboard() {
   // ============================================================================
   if (!transformationId && !companyId) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-12 text-center">
-            <h1 className="text-4xl font-bold text-white mb-4">
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0a1628 0%, #1a2d4a 50%, #0d1f35 100%)',
+        padding: '32px',
+      }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+          <div style={{
+            backdropFilter: 'blur(20px)',
+            backgroundColor: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '24px',
+            padding: '48px',
+            textAlign: 'center',
+          }}>
+            <h1 style={{
+              fontSize: '2.5rem',
+              fontWeight: 'bold',
+              color: 'white',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
+            }}>
               🎯 {labels.pageTitle}
             </h1>
-            <p className="text-white/70 text-lg mb-8">
+            <p style={{
+              color: 'rgba(255,255,255,0.7)',
+              fontSize: '1.125rem',
+              marginBottom: '32px',
+            }}>
               {labels.pageSubtitle}
             </p>
-            <div className="bg-white/10 rounded-2xl p-8 text-left">
-              <h2 className="text-xl font-semibold text-white mb-4">{labels.gettingStarted}</h2>
-              <ol className="space-y-4 text-white/80">
-                <li className="flex items-start gap-3">
-                  <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">1</span>
-                  <span>{labels.step1}</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">2</span>
-                  <span>{labels.step2}</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">3</span>
-                  <span>{labels.step3}</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">4</span>
-                  <span>{labels.step4}</span>
-                </li>
-              </ol>
+            
+            <div style={{
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              borderRadius: '16px',
+              padding: '32px',
+              textAlign: 'left',
+            }}>
+              <h2 style={{
+                fontSize: '1.5rem',
+                fontWeight: '600',
+                color: 'white',
+                marginBottom: '24px',
+              }}>{labels.gettingStarted}</h2>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* Step 1 */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+                  <div style={{
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                    color: 'white',
+                    borderRadius: '50%',
+                    width: '40px',
+                    height: '40px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '1rem',
+                    flexShrink: 0,
+                  }}>1</div>
+                  <span style={{ color: 'rgba(255,255,255,0.85)', paddingTop: '8px', lineHeight: '1.5' }}>{labels.step1}</span>
+                </div>
+                
+                {/* Step 2 */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+                  <div style={{
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                    color: 'white',
+                    borderRadius: '50%',
+                    width: '40px',
+                    height: '40px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '1rem',
+                    flexShrink: 0,
+                  }}>2</div>
+                  <span style={{ color: 'rgba(255,255,255,0.85)', paddingTop: '8px', lineHeight: '1.5' }}>{labels.step2}</span>
+                </div>
+                
+                {/* Step 3 */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+                  <div style={{
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                    color: 'white',
+                    borderRadius: '50%',
+                    width: '40px',
+                    height: '40px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '1rem',
+                    flexShrink: 0,
+                  }}>3</div>
+                  <span style={{ color: 'rgba(255,255,255,0.85)', paddingTop: '8px', lineHeight: '1.5' }}>{labels.step3}</span>
+                </div>
+                
+                {/* Step 4 */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+                  <div style={{
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                    color: 'white',
+                    borderRadius: '50%',
+                    width: '40px',
+                    height: '40px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '1rem',
+                    flexShrink: 0,
+                  }}>4</div>
+                  <span style={{ color: 'rgba(255,255,255,0.85)', paddingTop: '8px', lineHeight: '1.5' }}>{labels.step4}</span>
+                </div>
+              </div>
             </div>
+            
             <a
               href={`/universal-industry-plan?lang=${lang}`}
-              className="inline-block mt-8 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-500 hover:to-purple-500 transition-all"
+              style={{
+                display: 'inline-block',
+                marginTop: '32px',
+                padding: '16px 32px',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                color: 'white',
+                fontWeight: '600',
+                borderRadius: '12px',
+                textDecoration: 'none',
+                fontSize: '1.1rem',
+                transition: 'all 0.3s ease',
+              }}
+              onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
+              onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
             >
               {labels.generateFirst} →
             </a>
+          </div>
+          
+          {/* Quick Stats Preview */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '16px',
+            marginTop: '24px',
+          }}>
+            <div style={{
+              backdropFilter: 'blur(20px)',
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '16px',
+              padding: '24px',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📊</div>
+              <div style={{ color: 'white', fontWeight: '600' }}>Real-Time Tracking</div>
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', marginTop: '4px' }}>Monitor every milestone</div>
+            </div>
+            <div style={{
+              backdropFilter: 'blur(20px)',
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '16px',
+              padding: '24px',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🧠</div>
+              <div style={{ color: 'white', fontWeight: '600' }}>AI Insights</div>
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', marginTop: '4px' }}>Intelligent recommendations</div>
+            </div>
+            <div style={{
+              backdropFilter: 'blur(20px)',
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '16px',
+              padding: '24px',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🔄</div>
+              <div style={{ color: 'white', fontWeight: '600' }}>Adaptive Reports</div>
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', marginTop: '4px' }}>Regenerate based on progress</div>
+            </div>
+            <div style={{
+              backdropFilter: 'blur(20px)',
+              backgroundColor: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '16px',
+              padding: '24px',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>👥</div>
+              <div style={{ color: 'white', fontWeight: '600' }}>Role-Based Views</div>
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.875rem', marginTop: '4px' }}>Executive to Support staff</div>
+            </div>
           </div>
         </div>
       </div>

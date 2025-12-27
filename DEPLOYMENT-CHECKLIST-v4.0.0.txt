@@ -1,0 +1,255 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                     DEPLOYMENT CHECKLIST - v4.0.0                          ║
+║              Multi-Language Report Generation Fixes                         ║
+║                        Date: 2025-12-09                                     ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+PRE-DEPLOYMENT VERIFICATION
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ SYNTAX VALIDATION
+   ✓ No JavaScript errors found
+   ✓ JSON properly formatted
+   ✓ CSS valid
+   ✓ All functions properly closed
+
+✅ VERSION CONFIRMED
+   ✓ package.json version: 4.0.0
+   ✓ Ready for deployment
+
+✅ BACKUPS CREATED (2025-12-09)
+   ✓ package.json.backup_20251209
+   ✓ lib/implKitHtml.js.backup_20251209
+   ✓ lib/reportTemplate.js.backup_20251209
+   ✓ app/api/reform/generate/route.js.backup_20251209
+
+✅ CACHES CLEARED
+   ✓ .next/ directory removed
+   ✓ node_modules/.cache/ directory removed
+
+
+DEPLOYMENT STEPS
+═══════════════════════════════════════════════════════════════════════════════
+
+[ ] STEP 1: REVIEW CHANGES
+    □ Review DEPLOYMENT-GUIDE-v4.0.0.md
+    □ Understand all fixes being applied
+    □ Confirm backups are in place
+
+[ ] STEP 2: CHOOSE DEPLOYMENT METHOD
+    
+    Windows PowerShell:
+    ─────────────────────────────────────────────────────────────────
+    cd "C:\Users\DELL\Documents\Soveriegn-Intelligence-MVP\SOVEREIGN-..."
+    .\DEPLOY-v4.0.0.ps1
+    
+    Linux/macOS Bash:
+    ─────────────────────────────────────────────────────────────────
+    cd ~/path/to/SOVEREIGN-INTELLIGENCE-MVP__EMERGENCY_SNAPSHOT__...
+    chmod +x deploy-v4.0.0.sh
+    ./deploy-v4.0.0.sh
+
+[ ] STEP 3: MONITOR DEPLOYMENT
+    □ Watch console output for errors
+    □ Check deployment log file (DEPLOYMENT-LOG-v4.0.0-*.txt)
+    □ Wait for "npm run start" to launch server
+
+[ ] STEP 4: VERIFY SERVER RUNNING
+    □ Server should start on port 3000
+    □ Check: http://localhost:3000
+    □ No 500 errors in console
+
+[ ] STEP 5: TEST ALL FIXES
+    
+    [ ] APPENDIX J (Decision Framework)
+        □ Generate report
+        □ Scroll to Appendix J
+        □ Verify Decision Framework table renders
+        □ Verify it has data rows
+        
+    [ ] APPENDIX B (RACI) - TRANSLATION
+        □ Generate report in Scandinavian
+        □ Verify "RACI & Decision SLAs" header translates
+        □ Not still showing English
+        
+    [ ] APPENDIX D (Benefits Realization)
+        □ Generate report
+        □ Check Appendix D table
+        □ Verify text wraps (no overlap)
+        □ Headers visible and readable
+        
+    [ ] ALL APPENDICES (A-K)
+        □ Verify "Appendix" word translates
+        □ Test in English (should say "Appendix")
+        □ Test in Scandinavian (should translate)
+        □ All 11 appendix headers present
+        
+    [ ] PRIORITIZATION MATRIX
+        □ Generate report in Scandinavian
+        □ Verify title translates ("Initiative Prioritization Matrix")
+        □ Verify axis labels translate ("Effort", "Complexity")
+        □ Verify quadrant labels translate ("Big Bets", "Quick Wins", etc.)
+        □ Verify initiative names translate
+
+
+FILES MODIFIED IN THIS DEPLOYMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+1. lib/implKitHtml.js
+   ✓ Fixed Appendix J (Decision Framework)
+   ✓ Added CSS word-wrap for text overlap
+   ✓ Handles both 'scenarios' and 'items' arrays
+   
+   Change Summary:
+   - Line 743: Modified decisionFrameworkHTML() signature
+   - Lines 745-747: Added scenarios array handling
+   - Lines 100-125: Added CSS word-wrap properties
+   
+   Backup: lib/implKitHtml.js.backup_20251209
+
+2. lib/reportTemplate.js
+   ✓ Updated label keys for consistency
+   ✓ Two locations updated (lines 130-150, 1095-1115)
+   
+   Changes:
+   - day100Plan → hundredDayPlan
+   - pilotDesign → pilotCharter
+   - assumptions → assumptionsRanges
+   
+   Backup: lib/reportTemplate.js.backup_20251209
+
+3. app/api/reform/generate/route.js
+   ✓ Added appendix labels to translation payload
+   ✓ Added prioritization matrix labels
+   ✓ Added initiative names for translation
+   
+   Change Summary:
+   - Line 2469: Added 12 appendix label keys
+   - Line 2469: Added 7 prioritization matrix keys
+   - Line 2481: Added 5 initiative names
+   
+   Total: 24 new translation keys sent to GPT
+   
+   Backup: app/api/reform/generate/route.js.backup_20251209
+
+
+DEPLOYMENT SCRIPTS CREATED
+═══════════════════════════════════════════════════════════════════════════════
+
+1. DEPLOY-v4.0.0.ps1
+   Purpose: Windows PowerShell deployment script
+   Features:
+   - Comprehensive logging
+   - Version verification
+   - Syntax checking
+   - Cache cleanup
+   - Process management
+   - Build verification
+   - Server startup
+   
+2. deploy-v4.0.0.sh
+   Purpose: Linux/macOS bash deployment script
+   Features:
+   - Comprehensive logging
+   - Version verification
+   - Cache cleanup
+   - Process management
+   - Build verification
+   - Server startup
+
+3. DEPLOYMENT-GUIDE-v4.0.0.md
+   Purpose: Complete deployment guide
+   Contents:
+   - Quick start instructions
+   - What the deployment does
+   - Rollback instructions
+   - Testing procedures
+   - Troubleshooting guide
+
+
+ROLLBACK PLAN (If Needed)
+═══════════════════════════════════════════════════════════════════════════════
+
+If deployment causes issues:
+
+1. STOP THE SERVER
+   Ctrl+C in terminal
+
+2. RESTORE FROM BACKUP
+   cp lib/implKitHtml.js.backup_20251209 lib/implKitHtml.js
+   cp lib/reportTemplate.js.backup_20251209 lib/reportTemplate.js
+   cp app/api/reform/generate/route.js.backup_20251209 app/api/reform/generate/route.js
+
+3. CLEAR CACHES
+   rm -rf .next node_modules/.cache .swc
+
+4. REBUILD
+   npm run build
+
+5. RESTART
+   npm run start
+
+
+KEY DEPLOYMENT CHARACTERISTICS
+═══════════════════════════════════════════════════════════════════════════════
+
+Build Impact:
+   ✓ No schema changes
+   ✓ No database migrations needed
+   ✓ No environment variable changes
+   ✓ Backward compatible
+   ✓ Safe to deploy
+
+Performance Impact:
+   ✓ Minimal - no structural changes
+   ✓ Slightly larger translation payload (24 new keys)
+   ✓ No additional API calls needed
+
+Browser Compatibility:
+   ✓ No browser-side changes
+   ✓ CSS improvements are widely supported
+   ✓ No JavaScript API changes
+
+Language Support:
+   ✓ Fixes enable proper translation for:
+     - All 11 appendices
+     - Prioritization matrix
+     - Initiative names
+   ✓ Works with all languages (Scandinavian, German, French, Spanish, etc.)
+
+
+POST-DEPLOYMENT MONITORING
+═══════════════════════════════════════════════════════════════════════════════
+
+[ ] Check for any 500 errors in server logs
+[ ] Monitor memory usage
+[ ] Test in multiple languages (English, Scandinavian at minimum)
+[ ] Verify PDF export works (if applicable)
+[ ] Check API response times
+[ ] Monitor error logs for first 24 hours
+
+
+SIGN-OFF CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+[ ] All checks passed
+[ ] Backups verified
+[ ] Deployment method chosen
+[ ] Team notified of deployment
+[ ] Ready to deploy: ______________________ (Name)
+                     ______________________ (Date/Time)
+
+[ ] Deployment started: ______________________ (Date/Time)
+[ ] Deployment completed: ______________________ (Date/Time)
+[ ] All fixes verified: ______________________ (Date/Time)
+[ ] Server stable and responding: ______________________ (Date/Time)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+DEPLOYMENT v4.0.0 READY TO GO! ✓
+
+Run one of the deployment scripts:
+- Windows: .\DEPLOY-v4.0.0.ps1
+- Linux/macOS: ./deploy-v4.0.0.sh
+
+═══════════════════════════════════════════════════════════════════════════════

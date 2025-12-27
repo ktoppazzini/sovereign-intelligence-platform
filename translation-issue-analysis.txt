@@ -1,0 +1,13 @@
+[SR:REFORM] labels.translate.json.parse.error {
+  lang: 'French',
+  error: 'Unexpected end of JSON input',
+  rawPreview: ''
+}
+[SR:REFORM] labels.translated {
+  lang: 'French',
+  executiveSummary: 'Executive Summary',
+  tableOfContents: 'Table of Contents',
+  financialAnalysis: 'Financial Analysis',
+  projectedROI: 'Projected ROI',
+  totalKeys: 186
+}

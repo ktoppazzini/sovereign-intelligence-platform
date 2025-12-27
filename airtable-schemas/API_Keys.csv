@@ -1,0 +1,23 @@
+Field Name,Field Type,Description,Options/Formula
+id,Auto Number,Primary key,
+key_id,Single Line Text,Public key identifier,
+key_hash,Single Line Text,Hashed API key (never store plain),
+key_prefix,Single Line Text,Key prefix for identification (si_live_xxx...),
+name,Single Line Text,Key name/description,
+user_id,Single Line Text,Owner user ID,
+user_email,Email,Owner email,
+organization_id,Single Line Text,Organization identifier,
+key_type,Single Select,Key type,"live,test,restricted"
+permissions,Multiple Select,Key permissions,"read,write,delete,admin"
+allowed_endpoints,Long Text,JSON array of allowed endpoints (if restricted),
+allowed_ips,Long Text,JSON array of allowed IPs,
+rate_limit_tier,Single Select,Rate limit tier,"free,starter,professional,enterprise,government"
+is_active,Checkbox,Key is active,
+last_used_at,Date,Last usage timestamp,
+last_used_ip,Single Line Text,Last IP that used key,
+usage_count,Number,Total usage count,
+created_at,Date,Key creation timestamp,
+expires_at,Date,Key expiration date,
+revoked_at,Date,Revocation timestamp,
+revoked_by,Email,Who revoked the key,
+revocation_reason,Single Line Text,Reason for revocation,

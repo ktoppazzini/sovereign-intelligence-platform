@@ -1,0 +1,52 @@
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setSubmitMsg('');
+    setSubmitDone(false);
+    const ridSub = xid();
+    try {
+      const id = recordId || rid;
+      if (!id) throw new Error('Please click "Generate Report" before submitting.');
+
+      const body = { recordId: id, rid: id };
+      expose('lastSubmitBody', body);
+
+      const res = await fetch('/api/reform/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-SI-Debug': `reform-submit:${ridSub}` },
+        body: JSON.stringify(body),
+      });
+
+      const raw = await readSafeText(res);
+      const j = safeParseJSON(raw);
+      dbg('submit → response', { rid: ridSub, status: res.status, ok: res.ok });
+      vdbg('submit.response.rawPreview', preview(raw, 300));
+      expose('lastSubmitResponse', j || raw);
+
+      if (!res.ok || j?.ok === false || j?.error)
+        throw new Error((j && j.error) || `HTTP ${res.status}`);
+      setSubmitMsg(j?.status ? j.status : ui.submitted);
+      setSubmitDone(true);
+    } catch (e2) {
+      dbgErr('submit → error', { rid: ridSub, message: String(e2?.message || e2) });
+      setSubmitMsg(e2?.message || ui.error);
+      setSubmitDone(false);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // state probes
+  useEffect(() => {
+    vdbg('state.genFlags', { genBusy, genDone, genError: !!genError });
+  }, [genBusy, genDone, genError]);
+  useEffect(() => {
+    if (recordId || rid) vdbg('state.record', { recordId, rid });
+  }, [recordId, rid]);
+  useEffect(() => {
+    if (generatedHtml) vdbg('state.generatedHtml.len', (generatedHtml || '').length);
+  }, [generatedHtml]);
+
+  useEffect(() => {
+    if (!generatedHtml) return;
+

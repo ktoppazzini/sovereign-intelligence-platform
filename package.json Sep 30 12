@@ -1,0 +1,46 @@
+{
+  "type": "module",
+  "name": "sovereign-intelligence-mvp",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "dev:turbo": "next dev --turbo --port 3000",
+    "dev:clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && next dev --port 3000",
+    "build": "next build",
+    "start": "next start -p 3000"
+  },
+  "dependencies": {
+    "airtable": "^0.12.2",
+    "axios": "^1.6.7",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^17.2.1",
+    "encoding": "^0.1.13",
+    "i18next": "^23.16.8",
+    "i18next-browser-languagedetector": "^8.2.0",
+    "i18next-http-backend": "^3.0.2",
+    "js-cookie": "^3.0.5",
+    "lucide-react": "^0.536.0",
+    "next": "^15.4.5",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "^7.0.5",
+    "openai": "^5.11.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-i18next": "^13.5.0",
+    "react-icons": "^5.5.0",
+    "twilio": "^5.8.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "eslint": "^9.32.0",
+    "eslint-config-next": "^15.4.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.3",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.3.0",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}

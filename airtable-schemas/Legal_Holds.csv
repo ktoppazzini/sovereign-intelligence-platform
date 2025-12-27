@@ -1,0 +1,17 @@
+Field Name,Field Type,Description,Options/Formula
+id,Auto Number,Primary key,
+hold_id,Single Line Text,Unique hold ID (HOLD-timestamp),
+case_number,Single Line Text,Legal case number,
+case_name,Single Line Text,Legal case name,
+data_type,Single Select,Type of data under hold,"ALL,AUDIT_LOGS,USER_ACCOUNTS,PHI_RECORDS,REPORTS,COMMUNICATIONS"
+scope_description,Long Text,Description of data scope,
+reason,Long Text,Reason for legal hold,
+custodian_email,Email,Legal custodian contact,
+status,Single Select,Hold status,"active,released,expired"
+created_at,Date,Hold creation timestamp,
+created_by,Email,Who created the hold,
+expiration_date,Date,Hold expiration date (if any),
+released_at,Date,When hold was released,
+released_by,Email,Who released the hold,
+release_reason,Long Text,Reason for release,
+affected_deletion_ids,Long Text,JSON array of blocked deletions,

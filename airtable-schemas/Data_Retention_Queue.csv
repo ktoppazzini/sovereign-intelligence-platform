@@ -1,0 +1,18 @@
+Field Name,Field Type,Description,Options/Formula
+id,Auto Number,Primary key,
+deletion_id,Single Line Text,Unique deletion ID (DEL-timestamp),
+data_type,Single Select,Type of data to delete,"AUDIT_LOGS,SECURITY_EVENTS,USER_ACCOUNTS,DELETED_USER_DATA,PHI_RECORDS,PATIENT_RECORDS,REPORTS,ANALYTICS,BACKUPS,SESSION_DATA,TEMP_FILES"
+record_ids,Long Text,JSON array of specific record IDs,
+record_count,Number,Number of records to delete,
+reason,Long Text,Deletion justification,
+retention_policy,Single Line Text,Applicable retention policy,
+scheduled_date,Date,Scheduled deletion date,
+status,Single Select,Deletion status,"pending,processing,completed,cancelled,held,failed"
+created_at,Date,Request creation timestamp,
+created_by,Email,Who scheduled deletion,
+processed_at,Date,When deletion was processed,
+records_deleted,Number,Actual records deleted,
+error_message,Long Text,Error if deletion failed,
+cancelled_at,Date,Cancellation timestamp,
+cancelled_by,Email,Who cancelled deletion,
+hold_id,Single Line Text,Legal hold ID if held,

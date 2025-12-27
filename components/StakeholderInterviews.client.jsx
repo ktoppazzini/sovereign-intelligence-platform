@@ -7,10 +7,13 @@ import { useState, useEffect, useCallback } from 'react';
  * AI-driven stakeholder interview system that:
  * - Generates role-specific questions addressing burning issues
  * - Collects responses and analyzes them for insights
+ * - Performs cross-analysis across all stakeholders
+ * - Generates executive summaries and recommendations
  * - Learns from response quality to improve future questions
- * - Supports multiple stakeholders per project
+ * - Auto-generates status updates and communications
+ * - Monitors implementation and suggests adjustments
  * 
- * @version 2.0.0
+ * @version 3.0.0 - Full autonomous AI capabilities
  */
 export default function StakeholderInterviews({
   verticalId,
@@ -25,6 +28,7 @@ export default function StakeholderInterviews({
   burningIssues = [],
   onInterviewComplete,
   onInterviewChange,
+  onCrossAnalysisComplete,
 }) {
   // State
   const [stakeholders, setStakeholders] = useState([]);
@@ -40,6 +44,16 @@ export default function StakeholderInterviews({
   const [analysis, setAnalysis] = useState(null);
   const [showAddStakeholder, setShowAddStakeholder] = useState(true);
   const [newStakeholder, setNewStakeholder] = useState({ name: '', role: '', email: '', department: '' });
+  
+  // NEW: Cross-analysis and autonomous features
+  const [crossAnalysis, setCrossAnalysis] = useState(null);
+  const [crossAnalyzing, setCrossAnalyzing] = useState(false);
+  const [statusUpdate, setStatusUpdate] = useState(null);
+  const [generatingStatus, setGeneratingStatus] = useState(false);
+  const [showCrossAnalysis, setShowCrossAnalysis] = useState(false);
+  const [implementationMonitoring, setImplementationMonitoring] = useState(null);
+  const [autoModeEnabled, setAutoModeEnabled] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState([]);
 
   // Calculate progress
   const [progress, setProgress] = useState(0);
@@ -195,11 +209,160 @@ export default function StakeholderInterviews({
           completedAt: new Date().toISOString(),
         });
       }
+
+      // Auto-trigger cross-analysis if 2+ stakeholders completed
+      const completedCount = stakeholders.filter(s => s.status === 'completed').length + 1;
+      if (autoModeEnabled && completedCount >= 2) {
+        performCrossAnalysis();
+      }
     } catch (err) {
       console.error('Interview submission error:', err);
       setError('Failed to submit interview. Please try again.');
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // NEW: AUTONOMOUS AI FUNCTIONS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Cross-analyze all completed interviews
+  const performCrossAnalysis = async () => {
+    const completedStakeholders = stakeholders.filter(s => s.status === 'completed');
+    if (completedStakeholders.length < 2) {
+      setError('Need at least 2 completed interviews for cross-analysis');
+      return;
+    }
+
+    setCrossAnalyzing(true);
+    setShowCrossAnalysis(true);
+
+    try {
+      const interviews = completedStakeholders.map(s => ({
+        stakeholderName: s.name,
+        role: s.role,
+        department: s.department,
+        responses: questions.map(q => ({
+          question: q.question,
+          response: s.responses?.[q.id] || '',
+        })).filter(r => r.response),
+      }));
+
+      const res = await fetch('/api/ai/autonomous', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'cross-analysis',
+          interviews,
+          vertical: verticalId || vertical,
+          lang,
+          burningIssues,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setCrossAnalysis(data.analysis);
+        
+        // Extract AI suggestions from the analysis
+        if (data.analysis?.recommendations) {
+          setAiSuggestions(data.analysis.recommendations.slice(0, 5));
+        }
+
+        // Notify parent
+        if (onCrossAnalysisComplete) {
+          onCrossAnalysisComplete(data.analysis);
+        }
+      }
+    } catch (err) {
+      console.error('Cross-analysis error:', err);
+      setError('Failed to perform cross-analysis');
+    } finally {
+      setCrossAnalyzing(false);
+    }
+  };
+
+  // Generate automated status update
+  const generateStatusUpdate = async (audience = 'executive') => {
+    setGeneratingStatus(true);
+
+    try {
+      const completedCount = stakeholders.filter(s => s.status === 'completed').length;
+      const highlights = crossAnalysis?.consensus?.map(c => c.point) || [];
+      const challenges = crossAnalysis?.risks?.map(r => r.risk) || [];
+      const nextSteps = crossAnalysis?.recommendations?.map(r => r.action) || [];
+
+      const res = await fetch('/api/ai/autonomous', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate-status-update',
+          projectName: `${companyName || 'Organization'} - Stakeholder Analysis`,
+          audience,
+          status: `${completedCount}/${stakeholders.length} interviews completed`,
+          highlights,
+          challenges,
+          nextSteps,
+          vertical: verticalId || vertical,
+          lang,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setStatusUpdate(data.statusUpdate);
+      }
+    } catch (err) {
+      console.error('Status update generation error:', err);
+    } finally {
+      setGeneratingStatus(false);
+    }
+  };
+
+  // Monitor implementation progress
+  const checkImplementation = async () => {
+    if (!crossAnalysis?.implementationRoadmap) return;
+
+    try {
+      const res = await fetch('/api/ai/autonomous', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'monitor-implementation',
+          projectId: `${companyName}-stakeholder-${Date.now()}`,
+          milestones: Object.entries(crossAnalysis.implementationRoadmap).map(([phase, data]) => ({
+            name: data.name,
+            status: 'in_progress',
+            progress: 0,
+            dueDate: data.duration,
+          })),
+          currentStatus: 'In Progress',
+          metrics: {
+            interviewsCompleted: stakeholders.filter(s => s.status === 'completed').length,
+            insightsExtracted: crossAnalysis?.hiddenInsights?.length || 0,
+            recommendationsGenerated: crossAnalysis?.recommendations?.length || 0,
+          },
+          issues: crossAnalysis?.risks || [],
+          vertical: verticalId || vertical,
+          lang,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setImplementationMonitoring(data.monitoring);
+      }
+    } catch (err) {
+      console.error('Implementation monitoring error:', err);
+    }
+  };
+
+  // Copy status update to clipboard
+  const copyStatusUpdate = () => {
+    if (statusUpdate?.full_update) {
+      navigator.clipboard.writeText(statusUpdate.full_update);
+      alert('Status update copied to clipboard!');
     }
   };
 
@@ -527,17 +690,257 @@ export default function StakeholderInterviews({
     );
   };
 
+  // Render cross-analysis panel
+  const renderCrossAnalysis = () => {
+    if (!showCrossAnalysis) return null;
+
+    return (
+      <div style={{ 
+        background: 'rgba(0,0,0,0.3)', 
+        padding: 24, 
+        borderRadius: 16, 
+        marginTop: 24,
+        border: `1px solid ${color}40`,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h4 style={{ color: '#fff', margin: 0, fontSize: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
+            🧠 AI Cross-Analysis
+            {crossAnalyzing && <span style={{ fontSize: 14, color: color }}>Analyzing...</span>}
+          </h4>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => generateStatusUpdate('executive')}
+              disabled={generatingStatus || !crossAnalysis}
+              style={{ ...buttonStyle, padding: '8px 16px', fontSize: 12, background: `${color}30`, color: color }}
+            >
+              {generatingStatus ? '⏳' : '📧'} Generate Status Update
+            </button>
+            <button
+              onClick={() => setShowCrossAnalysis(false)}
+              style={{ ...buttonStyle, padding: '8px 16px', fontSize: 12, background: 'rgba(255,255,255,0.1)' }}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {crossAnalyzing ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <div style={{ fontSize: 48, marginBottom: 16, animation: 'pulse 2s infinite' }}>🤖</div>
+            <div style={{ color: '#fff', fontWeight: 600 }}>Sovereign AI is cross-analyzing all interviews...</div>
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: 8 }}>
+              Identifying patterns, consensus points, and generating recommendations
+            </div>
+          </div>
+        ) : crossAnalysis ? (
+          <div>
+            {/* Summary */}
+            {crossAnalysis.summary && (
+              <div style={{ background: `${color}15`, padding: 16, borderRadius: 12, marginBottom: 20, borderLeft: `4px solid ${color}` }}>
+                <div style={{ color: color, fontWeight: 600, fontSize: 13, marginBottom: 8 }}>📋 EXECUTIVE SUMMARY</div>
+                <div style={{ color: '#fff', fontSize: 15 }}>{crossAnalysis.summary}</div>
+              </div>
+            )}
+
+            {/* Scores */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
+              {crossAnalysis.overallScore && (
+                <div style={{ background: 'rgba(16,185,129,0.1)', padding: 16, borderRadius: 12, textAlign: 'center' }}>
+                  <div style={{ fontSize: 32, fontWeight: 800, color: '#10b981' }}>{crossAnalysis.overallScore}</div>
+                  <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>Overall Score</div>
+                </div>
+              )}
+              {crossAnalysis.confidenceLevel && (
+                <div style={{ background: 'rgba(59,130,246,0.1)', padding: 16, borderRadius: 12, textAlign: 'center' }}>
+                  <div style={{ fontSize: 32, fontWeight: 800, color: '#3b82f6' }}>{crossAnalysis.confidenceLevel}%</div>
+                  <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>AI Confidence</div>
+                </div>
+              )}
+            </div>
+
+            {/* Themes */}
+            {crossAnalysis.themes?.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ color: '#fff', fontWeight: 600, marginBottom: 12 }}>🎯 Key Themes</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {crossAnalysis.themes.map((theme, i) => (
+                    <span key={i} style={{
+                      padding: '6px 14px',
+                      borderRadius: 20,
+                      background: theme.sentiment === 'positive' ? 'rgba(16,185,129,0.2)' : 
+                                  theme.sentiment === 'negative' ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)',
+                      color: theme.sentiment === 'positive' ? '#10b981' : 
+                             theme.sentiment === 'negative' ? '#ef4444' : '#f59e0b',
+                      fontSize: 13,
+                      fontWeight: 500,
+                    }}>
+                      {theme.theme} ({theme.frequency})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recommendations */}
+            {crossAnalysis.recommendations?.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ color: '#fff', fontWeight: 600, marginBottom: 12 }}>✅ AI Recommendations</div>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  {crossAnalysis.recommendations.slice(0, 5).map((rec, i) => (
+                    <div key={i} style={{
+                      padding: 12,
+                      background: 'rgba(0,0,0,0.2)',
+                      borderRadius: 8,
+                      borderLeft: `3px solid ${color}`,
+                    }}>
+                      <div style={{ color: '#fff', fontWeight: 500, marginBottom: 4 }}>
+                        {i + 1}. {rec.action}
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, fontSize: 12 }}>
+                        <span style={{ color: 'rgba(255,255,255,0.5)' }}>Owner: {rec.owner || 'TBD'}</span>
+                        <span style={{ color: 'rgba(255,255,255,0.5)' }}>Timeline: {rec.timeline || 'TBD'}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Risks */}
+            {crossAnalysis.risks?.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ color: '#fff', fontWeight: 600, marginBottom: 12 }}>⚠️ Identified Risks</div>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  {crossAnalysis.risks.slice(0, 3).map((risk, i) => (
+                    <div key={i} style={{
+                      padding: 12,
+                      background: 'rgba(239,68,68,0.1)',
+                      borderRadius: 8,
+                      borderLeft: `3px solid ${risk.severity === 'high' ? '#ef4444' : risk.severity === 'medium' ? '#f59e0b' : '#6b7280'}`,
+                    }}>
+                      <div style={{ color: '#fff', fontWeight: 500, marginBottom: 4 }}>{risk.risk}</div>
+                      <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>Mitigation: {risk.mitigation}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Hidden Insights */}
+            {crossAnalysis.hiddenInsights?.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ color: '#fff', fontWeight: 600, marginBottom: 12 }}>💡 Hidden Insights</div>
+                <ul style={{ margin: 0, padding: '0 0 0 20px', color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>
+                  {crossAnalysis.hiddenInsights.map((insight, i) => (
+                    <li key={i} style={{ marginBottom: 6 }}>{insight}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: 20, color: 'rgba(255,255,255,0.5)' }}>
+            No cross-analysis data yet. Complete at least 2 interviews.
+          </div>
+        )}
+
+        {/* Status Update Panel */}
+        {statusUpdate && (
+          <div style={{ 
+            marginTop: 20, 
+            padding: 20, 
+            background: 'rgba(139,92,246,0.1)', 
+            borderRadius: 12,
+            border: '1px solid rgba(139,92,246,0.3)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ color: '#8b5cf6', fontWeight: 600 }}>📧 Generated Status Update</div>
+              <button onClick={copyStatusUpdate} style={{ ...buttonStyle, padding: '6px 12px', fontSize: 12 }}>
+                📋 Copy
+              </button>
+            </div>
+            <div style={{ color: '#fff', fontWeight: 600, marginBottom: 8 }}>Subject: {statusUpdate.subject}</div>
+            <div style={{ 
+              color: 'rgba(255,255,255,0.8)', 
+              fontSize: 14, 
+              whiteSpace: 'pre-wrap',
+              background: 'rgba(0,0,0,0.2)',
+              padding: 16,
+              borderRadius: 8,
+              maxHeight: 200,
+              overflow: 'auto',
+            }}>
+              {statusUpdate.full_update || statusUpdate.executive_summary}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Main render
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <h3 style={{ color: '#fff', margin: '0 0 8px 0', fontSize: 18 }}>
-          🎤 Stakeholder Interviews
-        </h3>
-        <p style={{ color: 'rgba(255,255,255,0.6)', margin: 0, fontSize: 14 }}>
-          AI-powered interviews that address industry burning issues. Questions improve based on response quality.
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h3 style={{ color: '#fff', margin: '0 0 8px 0', fontSize: 18 }}>
+              🎤 Stakeholder Interviews
+            </h3>
+            <p style={{ color: 'rgba(255,255,255,0.6)', margin: 0, fontSize: 14 }}>
+              AI-powered interviews with cross-analysis, summaries, and autonomous recommendations.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Auto-mode toggle */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={autoModeEnabled}
+                onChange={(e) => setAutoModeEnabled(e.target.checked)}
+                style={{ width: 18, height: 18, accentColor: color }}
+              />
+              <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>🤖 Auto-mode</span>
+            </label>
+            
+            {/* Cross-analysis button */}
+            {stakeholders.filter(s => s.status === 'completed').length >= 2 && (
+              <button
+                onClick={performCrossAnalysis}
+                disabled={crossAnalyzing}
+                style={{
+                  ...buttonStyle,
+                  padding: '8px 16px',
+                  fontSize: 13,
+                  background: crossAnalysis ? `${color}20` : color,
+                  color: crossAnalysis ? color : '#fff',
+                  border: crossAnalysis ? `1px solid ${color}` : 'none',
+                }}
+              >
+                {crossAnalyzing ? '⏳ Analyzing...' : crossAnalysis ? '🔄 Re-analyze' : '🧠 Cross-Analyze'}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* AI Suggestions Banner */}
+      {aiSuggestions.length > 0 && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(59,130,246,0.1) 100%)',
+          padding: 16,
+          borderRadius: 12,
+          marginBottom: 20,
+          border: '1px solid rgba(139,92,246,0.2)',
+        }}>
+          <div style={{ color: '#8b5cf6', fontWeight: 600, marginBottom: 8, fontSize: 13 }}>
+            🤖 Sovereign AI Suggests
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>
+            {aiSuggestions[0]?.action || aiSuggestions[0]}
+          </div>
+        </div>
+      )}
 
       {/* Add stakeholder form or stakeholder list */}
       {showAddStakeholder && renderAddStakeholder()}
@@ -545,6 +948,9 @@ export default function StakeholderInterviews({
 
       {/* Interview content */}
       {activeStakeholder && !showAddStakeholder && renderInterview()}
+
+      {/* Cross-analysis panel */}
+      {renderCrossAnalysis()}
 
       {/* Empty state */}
       {stakeholders.length === 0 && !showAddStakeholder && (

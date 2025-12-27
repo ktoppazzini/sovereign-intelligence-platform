@@ -1,6 +1,7 @@
 // app/reform-report/PdfExportWire.client.jsx
 'use client';
 import { useEffect } from 'react';
+import { loadModuleTranslations, ensureTranslatedResponse } from '../lib/dynamicTranslation';
 
 function findButton(rx) {
   return Array.from(document.querySelectorAll('button')).find((b) => rx.test(b.textContent || ''));

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getUiTranslations } from '../lib/i18nClient';
+import { loadModuleTranslations, ensureTranslatedResponse } from '../lib/dynamicTranslation';
 
 /**
  * RealTimeDashboard - Live metrics and KPI monitoring

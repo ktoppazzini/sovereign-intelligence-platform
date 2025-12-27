@@ -1,0 +1,23 @@
+Field Name,Field Type,Description,Options/Formula
+id,Auto Number,Primary key,
+log_id,Single Line Text,Unique log identifier (log_timestamp_random),
+timestamp,Date,Event timestamp with time,
+event_type,Single Select,Category of event,"authentication,authorization,data_access,data_modification,configuration,admin_action,security_event"
+action,Single Line Text,Specific action performed,
+user_id,Single Line Text,User who performed action,
+user_email,Email,User email address,
+user_role,Single Select,User role at time of action,"admin,manager,analyst,viewer,auditor,system"
+organization_id,Single Line Text,Organization identifier,
+resource_type,Single Line Text,Type of resource accessed,
+resource_id,Single Line Text,Identifier of resource,
+ip_address,Single Line Text,Client IP address,
+user_agent,Long Text,Browser/client user agent,
+session_id,Single Line Text,Session identifier,
+outcome,Single Select,Result of action,"success,failure,denied,error"
+severity,Single Select,Log severity level,"info,warning,error,critical"
+details,Long Text,JSON details of the event,
+phi_accessed,Checkbox,Whether PHI was accessed (HIPAA),
+phi_fields,Long Text,List of PHI fields accessed,
+access_purpose,Single Line Text,Purpose of access (minimum necessary),
+compliance_tags,Multiple Select,Applicable compliance frameworks,"HIPAA,SOC2,GDPR,PCI-DSS"
+retention_days,Number,Days to retain this log,

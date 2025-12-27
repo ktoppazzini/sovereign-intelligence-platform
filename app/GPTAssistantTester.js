@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useGPTAssist } from './assistant/useGPTAssist';
-import LanguageSelector from '../components/LanguageSelector';
 
 export default function GPTAssistantTester() {
   const [input, setInput] = useState('');
@@ -17,9 +16,6 @@ export default function GPTAssistantTester() {
 
   return (
     <main style={{ padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
-      <header style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <LanguageSelector />
-      </header>
 
       <h1>Ask Sovereign GPT Assistant</h1>
       <form onSubmit={handleSubmit}>

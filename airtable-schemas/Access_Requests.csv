@@ -1,0 +1,25 @@
+Field Name,Field Type,Description,Options/Formula
+id,Auto Number,Primary key,
+request_id,Single Line Text,Unique request ID (REQ-timestamp),
+request_type,Single Select,Type of access request,"new_access,elevated_access,role_change,temporary_access,emergency_access"
+requestor_user_id,Single Line Text,User ID of requestor,
+requestor_email,Email,Email of requestor,
+target_user_id,Single Line Text,User receiving access (if different),
+target_user_email,Email,Target user email,
+organization_id,Single Line Text,Organization identifier,
+current_role,Single Select,User's current role,"viewer,analyst,manager,admin,auditor"
+requested_role,Single Select,Requested role,"viewer,analyst,manager,admin,auditor"
+requested_permissions,Long Text,JSON array of specific permissions,
+reason,Long Text,Business justification,
+duration,Single Line Text,Access duration (permanent/4h/7d/30d),
+expires_at,Date,When access expires (if temporary),
+status,Single Select,Request status,"pending,approved,denied,expired,revoked"
+approver_email,Email,Who approved/denied,
+approver_notes,Long Text,Approver comments,
+approved_at,Date,Approval timestamp,
+is_emergency,Checkbox,Emergency access flag,
+created_at,Date,Request creation timestamp,
+updated_at,Date,Last update timestamp,
+revoked_at,Date,When access was revoked,
+revoked_by,Email,Who revoked access,
+revocation_reason,Long Text,Reason for revocation,

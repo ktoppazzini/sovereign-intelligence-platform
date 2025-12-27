@@ -1,0 +1,20 @@
+Field Name,Field Type,Description,Options/Formula
+id,Auto Number,Primary key,
+user_id,Single Line Text,User identifier,
+user_email,Email,User email,
+organization_id,Single Line Text,Organization identifier,
+plan,Single Select,Subscription plan,"free,starter,professional,enterprise,government"
+billing_period_start,Date,Current billing period start,
+billing_period_end,Date,Current billing period end,
+credits_allocated,Number,Total credits for period,
+credits_used,Number,Credits consumed,
+credits_remaining,Number,Credits remaining,Formula: {credits_allocated} - {credits_used}
+api_calls_total,Number,Total API calls,
+api_calls_by_endpoint,Long Text,JSON breakdown by endpoint,
+reports_generated,Number,Reports generated count,
+ai_tokens_used,Number,AI tokens consumed,
+storage_used_mb,Number,Storage used in MB,
+last_activity_at,Date,Last activity timestamp,
+overage_charges,Currency,Overage charges if any,
+is_throttled,Checkbox,Currently rate limited,
+throttled_until,Date,Throttle expiration,

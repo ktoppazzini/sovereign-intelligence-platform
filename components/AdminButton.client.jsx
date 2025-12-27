@@ -2,6 +2,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { loadModuleTranslations, ensureTranslatedResponse } from '../lib/dynamicTranslation';
 
 function getCookie(name) {
   const m = document.cookie.match(

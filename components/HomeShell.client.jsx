@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import styles from './NonHomeShell.module.css'; // sidebar + layout CSS
 import { getUiTranslations, normalizeLang } from '../lib/i18nClient';
+import { loadModuleTranslations, ensureTranslatedResponse } from '../lib/dynamicTranslation';
 
 /* ---------- tiny helpers (in-file) ---------- */
 function Icon({ name }) {

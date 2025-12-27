@@ -1,5 +1,6 @@
 'use client';
 import { useState, useCallback, useRef } from 'react';
+import { loadModuleTranslations, ensureTranslatedResponse } from '../lib/dynamicTranslation';
 
 /**
  * DataUpload Component

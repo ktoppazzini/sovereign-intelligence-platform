@@ -1,0 +1,16 @@
+Field Name,Field Type,Description,Options/Formula
+id,Auto Number,Primary key,
+event_id,Single Line Text,Unique event ID,
+source,Single Select,Webhook source,"stripe,airtable,github,custom"
+event_type,Single Line Text,Event type (e.g. customer.subscription.created),
+payload,Long Text,JSON webhook payload,
+signature,Single Line Text,Webhook signature for verification,
+received_at,Date,When webhook was received,
+processed_at,Date,When webhook was processed,
+status,Single Select,Processing status,"received,processing,completed,failed,skipped"
+attempts,Number,Processing attempts,
+error_message,Long Text,Error if processing failed,
+response_code,Number,Response code sent,
+processing_time_ms,Number,Processing duration,
+organization_id,Single Line Text,Related organization,
+user_id,Single Line Text,Related user,

@@ -1,0 +1,21 @@
+Field Name,Field Type,Description,Options/Formula
+id,Auto Number,Primary key,
+review_id,Single Line Text,Unique review ID (REV-timestamp),
+review_type,Single Select,Type of review,"quarterly,annual,triggered,certification"
+scope,Single Select,Review scope,"all_users,department,role,individual"
+scope_filter,Single Line Text,Filter value for scope,
+organization_id,Single Line Text,Organization identifier,
+status,Single Select,Review status,"scheduled,in_progress,completed,overdue,cancelled"
+started_by,Email,Who initiated review,
+started_at,Date,Review start timestamp,
+due_date,Date,Review due date,
+completed_at,Date,Review completion timestamp,
+completed_by,Email,Who completed review,
+users_reviewed,Number,Count of users reviewed,
+access_confirmed,Number,Count of access confirmed,
+access_revoked,Number,Count of access revoked,
+access_modified,Number,Count of access modified,
+findings,Long Text,JSON array of findings,
+actions_taken,Long Text,JSON array of actions,
+compliance_status,Single Select,Compliance outcome,"compliant,non_compliant,remediation_required"
+next_review_date,Date,Scheduled next review,

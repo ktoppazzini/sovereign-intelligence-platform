@@ -1,0 +1,57 @@
+Field Name,Field Type,Description,Options/Formula
+id,Auto Number,Primary key,
+RequestId,Single Line Text,Unique request identifier (ENR-timestamp),
+ClientEmail,Email,Client/requester email,
+ClientName,Single Line Text,Client name,
+Organization,Single Line Text,Utility/energy company name,
+Country,Link to Another Record,Link to Countries table,
+Country Name,Lookup,Lookup from Country link,
+Utility Type,Single Select,"Electric,Gas,Water,Multi-Utility,Generation,Transmission,Distribution"
+Energy Source,Multiple Select,"Coal,Natural Gas,Nuclear,Solar,Wind,Hydro,Geothermal,Battery Storage"
+Analysis Type,Single Select,"Grid Optimization,Renewable Integration,Outage Prevention,Demand Response,Asset Management,Cybersecurity"
+Regulatory Framework,Multiple Select,"NERC CIP,FERC,ISO 50001,IEC 61850,EPA,State PUC"
+Language,Link to Another Record,Link to Languages table,
+Language Name,Lookup,Lookup from Language link,
+Analysis Objective,Long Text,Primary analysis objective,
+Current Reliability,Percent,Current SAIDI/SAIFI metrics,
+Grid Capacity,Number,Grid capacity in MW,
+Peak Demand,Number,Peak demand in MW,
+Renewable Percentage,Percent,Renewable energy percentage,
+Asset Age Average,Number,Average asset age in years,
+Timeline,Single Select,"Immediate,1 Month,1 Quarter,6 Months,1 Year,Multi-Year"
+Budget Range,Single Select,"<$1M,$1M-$10M,$10M-$100M,$100M-$500M,$500M+"
+Priority,Single Select,"Critical,High,Medium,Low"
+Status,Single Select,"Draft,Engineering Review,Regulatory Review,Approved,Implementation,Completed"
+Approval State,Single Select,"Not Submitted,Pending Approval,Approved,Rejected,Changes Requested"
+Report HTML,Long Text,Generated HTML report content,
+Report JSON,Long Text,JSON data for report regeneration,
+AI Summary,Long Text,AI-generated executive summary,
+Recommendations,Long Text,AI-generated recommendations,
+Risk Assessment,Long Text,Risk analysis JSON,
+Grid Analysis,Long Text,Grid optimization JSON,
+Outage Prediction,Long Text,Predictive outage JSON,
+Demand Forecast,Long Text,Demand forecasting JSON,
+Asset Health,Long Text,Asset condition JSON,
+Cybersecurity Assessment,Long Text,OT security analysis JSON,
+Generated At,Date,When report was generated,
+Submitted At,Date,When submitted for approval,
+Approved At,Date,Approval timestamp,
+Rejected At,Date,Rejection timestamp,
+Finalized At,Date,Final approval timestamp,
+Exported At,Date,Last export timestamp,
+Downloaded At,Date,Last download timestamp,
+Changes Requested At,Date,Changes request timestamp,
+Approval Requested By,Email,Who requested approval,
+Approval Requested At,Date,Approval request timestamp,
+Approved By,Email,Approver email,
+Rejected By,Email,Rejector email,
+Approver Name,Single Line Text,Approver display name,
+Preparer Name,Single Line Text,Report preparer name,
+Approval Notes,Long Text,Notes from approval request,
+Decision Notes,Long Text,Approver decision notes,
+Version,Number,Report version number,
+Created At,Date,Record creation timestamp,
+Last Modified,Date,Last modification timestamp,
+Created By,Email,Creator email,
+Attachments,Attachment,Supporting documents,
+S3 URL,URL,S3 storage URL for PDF,

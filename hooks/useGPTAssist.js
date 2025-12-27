@@ -1,0 +1,1 @@
+// GPT assistant hook logic

@@ -1,0 +1,494 @@
+// Sovereign Intelligence Platform - Enterprise Database Schema
+// PostgreSQL + Prisma ORM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== MULTI-TENANCY ====================
+
+model Organization {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  domain          String?  @unique
+  logo            String?
+  plan            Plan     @default(FREE)
+  planExpiresAt   DateTime?
+  
+  // Billing
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?
+  
+  // Settings
+  settings        Json     @default("{}")
+  ssoEnabled      Boolean  @default(false)
+  ssoProvider     String?  // azure_ad, okta, auth0
+  ssoConfig       Json?
+  
+  // Compliance
+  hipaaEnabled    Boolean  @default(false)
+  soc2Enabled     Boolean  @default(false)
+  dataRetentionDays Int    @default(365)
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  users           User[]
+  teams           Team[]
+  reports         Report[]
+  apiKeys         ApiKey[]
+  auditLogs       AuditLog[]
+  workflows       Workflow[]
+  integrations    Integration[]
+  
+  @@index([slug])
+  @@index([stripeCustomerId])
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+  GOVERNMENT
+}
+
+// ==================== USER MANAGEMENT ====================
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  emailVerified   DateTime?
+  passwordHash    String?
+  name            String?
+  avatar          String?
+  phone           String?
+  phoneVerified   DateTime?
+  
+  // Auth
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+  lastLoginAt      DateTime?
+  lastLoginIp      String?
+  failedLoginAttempts Int  @default(0)
+  lockedUntil      DateTime?
+  
+  // Organization
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role            Role         @default(MEMBER)
+  
+  // Preferences
+  language        String   @default("English")
+  timezone        String   @default("UTC")
+  preferences     Json     @default("{}")
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+  
+  // Relations
+  sessions        Session[]
+  reports         Report[]
+  approvals       Approval[]
+  auditLogs       AuditLog[]
+  teamMemberships TeamMember[]
+  notifications   Notification[]
+  
+  @@index([organizationId])
+  @@index([email])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MANAGER
+  ANALYST
+  MEMBER
+  VIEWER
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  token        String   @unique
+  expiresAt    DateTime
+  ipAddress    String?
+  userAgent    String?
+  
+  createdAt    DateTime @default(now())
+  
+  @@index([userId])
+  @@index([token])
+}
+
+model Team {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  members         TeamMember[]
+  
+  @@unique([organizationId, name])
+}
+
+model TeamMember {
+  id       String   @id @default(cuid())
+  teamId   String
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     TeamRole @default(MEMBER)
+  
+  joinedAt DateTime @default(now())
+  
+  @@unique([teamId, userId])
+}
+
+enum TeamRole {
+  LEAD
+  MEMBER
+}
+
+// ==================== REPORTS & DOCUMENTS ====================
+
+model Report {
+  id              String       @id @default(cuid())
+  
+  // Metadata
+  title           String
+  description     String?
+  vertical        Vertical
+  language        String       @default("English")
+  
+  // Content
+  inputData       Json         // Original form data
+  aiResponse      Json?        // AI-generated content
+  htmlContent     String?      @db.Text
+  pdfUrl          String?
+  
+  // Status
+  status          ReportStatus @default(DRAFT)
+  version         Int          @default(1)
+  
+  // Ownership
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdById     String
+  createdBy       User         @relation(fields: [createdById], references: [id])
+  
+  // Workflow
+  workflowId      String?
+  workflow        Workflow?    @relation(fields: [workflowId], references: [id])
+  currentStage    String?
+  
+  // Timestamps
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  finalizedAt     DateTime?
+  archivedAt      DateTime?
+  
+  // Relations
+  approvals       Approval[]
+  attachments     Attachment[]
+  comments        Comment[]
+  versions        ReportVersion[]
+  
+  @@index([organizationId])
+  @@index([createdById])
+  @@index([status])
+  @@index([vertical])
+  @@index([createdAt])
+}
+
+enum Vertical {
+  GOVERNMENT_REFORM
+  DEFENSE_INTELLIGENCE
+  PHARMACEUTICAL
+  HEALTHCARE_CLINICAL
+  FINANCE
+  MANUFACTURING
+  ENERGY
+  INSURANCE
+  LOGISTICS
+  ENTERPRISE
+}
+
+enum ReportStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  FINALIZED
+  ARCHIVED
+}
+
+model ReportVersion {
+  id          String   @id @default(cuid())
+  reportId    String
+  report      Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  
+  version     Int
+  inputData   Json
+  aiResponse  Json?
+  htmlContent String?  @db.Text
+  
+  createdAt   DateTime @default(now())
+  createdById String
+  changeNote  String?
+  
+  @@unique([reportId, version])
+}
+
+model Attachment {
+  id          String   @id @default(cuid())
+  reportId    String
+  report      Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  
+  filename    String
+  mimeType    String
+  size        Int
+  url         String
+  s3Key       String?
+  
+  uploadedAt  DateTime @default(now())
+  uploadedById String
+  
+  @@index([reportId])
+}
+
+model Comment {
+  id          String   @id @default(cuid())
+  reportId    String
+  report      Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  
+  content     String   @db.Text
+  authorId    String
+  parentId    String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([reportId])
+}
+
+// ==================== WORKFLOW & APPROVALS ====================
+
+model Workflow {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  vertical        Vertical?
+  stages          Json     // Array of workflow stages
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  reports         Report[]
+  
+  @@unique([organizationId, name])
+}
+
+model Approval {
+  id          String         @id @default(cuid())
+  reportId    String
+  report      Report         @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  
+  stage       String
+  status      ApprovalStatus @default(PENDING)
+  
+  approverId  String?
+  approver    User?          @relation(fields: [approverId], references: [id])
+  
+  comment     String?
+  
+  requestedAt DateTime       @default(now())
+  respondedAt DateTime?
+  
+  @@index([reportId])
+  @@index([approverId])
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SKIPPED
+}
+
+// ==================== API & INTEGRATIONS ====================
+
+model ApiKey {
+  id              String   @id @default(cuid())
+  
+  name            String
+  keyHash         String   @unique  // SHA-256 hash of actual key
+  keyPrefix       String            // First 8 chars for identification
+  
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Permissions
+  scopes          String[] @default(["read"])
+  
+  // Rate limiting
+  rateLimit       Int      @default(1000)  // requests per hour
+  
+  // Tracking
+  lastUsedAt      DateTime?
+  usageCount      Int      @default(0)
+  
+  // Lifecycle
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([organizationId])
+  @@index([keyPrefix])
+}
+
+model Integration {
+  id              String   @id @default(cuid())
+  
+  type            IntegrationType
+  name            String
+  
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  config          Json     // Encrypted configuration
+  credentials     Json?    // Encrypted credentials
+  
+  isActive        Boolean  @default(true)
+  lastSyncAt      DateTime?
+  syncStatus      String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([organizationId, type])
+}
+
+enum IntegrationType {
+  SLACK
+  TEAMS
+  JIRA
+  SALESFORCE
+  SERVICENOW
+  AIRTABLE
+  GOOGLE_DRIVE
+  SHAREPOINT
+  CUSTOM_WEBHOOK
+}
+
+// ==================== AUDIT & COMPLIANCE ====================
+
+model AuditLog {
+  id              String   @id @default(cuid())
+  
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  
+  action          String   // e.g., "report.created", "user.login"
+  resource        String?  // e.g., "report", "user"
+  resourceId      String?
+  
+  details         Json?    // Additional context
+  ipAddress       String?
+  userAgent       String?
+  
+  timestamp       DateTime @default(now())
+  
+  @@index([organizationId])
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
+  @@index([resourceId])
+}
+
+// ==================== NOTIFICATIONS ====================
+
+model Notification {
+  id          String           @id @default(cuid())
+  
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type        NotificationType
+  title       String
+  message     String
+  data        Json?
+  
+  readAt      DateTime?
+  
+  createdAt   DateTime         @default(now())
+  
+  @@index([userId])
+  @@index([readAt])
+}
+
+enum NotificationType {
+  REPORT_SUBMITTED
+  REPORT_APPROVED
+  REPORT_REJECTED
+  APPROVAL_REQUESTED
+  COMMENT_ADDED
+  SYSTEM_ALERT
+  BILLING_ALERT
+}
+
+// ==================== ANALYTICS ====================
+
+model UsageMetric {
+  id              String   @id @default(cuid())
+  
+  organizationId  String
+  
+  date            DateTime @db.Date
+  metric          String   // e.g., "reports_generated", "api_calls"
+  value           Int
+  metadata        Json?
+  
+  @@unique([organizationId, date, metric])
+  @@index([organizationId])
+  @@index([date])
+}
+
+// ==================== CACHE ====================
+
+model Cache {
+  key       String   @id
+  value     Json
+  expiresAt DateTime
+  
+  @@index([expiresAt])
+}
