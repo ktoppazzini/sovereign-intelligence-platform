@@ -828,12 +828,11 @@ async function translateOccupations(occupations, targetLang) {
     const translationPromises = [];
 
     // Categories translation promise - COMPRESSED PROMPT (30% token reduction)
-    const catPrompt = `Translate ISCO-08 categories to ${targetLang}. Keep codes. Formal language. Return JSON only.
+    const catPrompt = `Translate ISCO-08 to ${targetLang}. Keep codes. Formal. JSON only.
 
-Categories:
 ${categoryNames.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
-Return: { "translations": ["1 - Name", "2 - Name", ...] }`;
+Return: { "translations": ["1 - Name", ...] }`;
 
     translationPromises.push(
       openai.chat.completions.create({
@@ -879,12 +878,11 @@ Return: { "translations": ["1 - Name", "2 - Name", ...] }`;
       const batchIdx = Math.floor(i / BATCH_SIZE);
       batchIndices.push({ start: i, end: i + batch.length });
       
-      const subPrompt = `Translate ISCO-08 to ${targetLang}. Keep all codes. Formal. JSON only.
+      const subPrompt = `Translate to ${targetLang}. Keep codes. JSON only.
 
-Occupations:
 ${batch.map((s, idx) => `${idx + 1}. ${s}`).join('\n')}
 
-Return: { "translations": ["11 - Translated", ...] }`;
+Return: { "translations": [...] }`;
 
       translationPromises.push(
         openai.chat.completions.create({
