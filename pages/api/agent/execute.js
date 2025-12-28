@@ -9,7 +9,7 @@
 // - Add monitoring rules
 // - FLAWLESS EXECUTION: Execute verified, rollback-capable actions
 
-import { ensureTranslatedResponse, loadModuleTranslations } from '../../lib/dynamicTranslation';
+import { ensureTranslatedResponse, loadModuleTranslations } from '../../../lib/dynamicTranslation';
 // ═══════════════════════════════════════════════════════════════════════════
 // SOVEREIGN AI 7 CAPABILITIES EMBEDDED:
 // 1. Autonomous - Executes without prompting
