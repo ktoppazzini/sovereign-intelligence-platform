@@ -33,21 +33,22 @@ const BASE_UI = {
 
 const RTL_LANGUAGES = ['Arabic', 'Hebrew', 'Urdu', 'Persian', 'Pashto', 'Sindhi'];
 
-// Premium animated AI avatar component - Luxury design
+// Premium animated AI avatar component - Distinguished Executive Male (Mid-50s)
 function SovereignAvatar({ size = 48, animated = true, pulse = false }) {
   return (
     <div style={{
       width: size,
       height: size,
       borderRadius: '50%',
-      background: 'linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%)',
+      background: 'linear-gradient(145deg, #2c3e50 0%, #34495e 50%, #1a252f 100%)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       position: 'relative',
+      overflow: 'hidden',
       boxShadow: pulse 
-        ? '0 0 30px rgba(212, 175, 55, 0.5), 0 0 60px rgba(212, 175, 55, 0.2), inset 0 0 20px rgba(212, 175, 55, 0.1)'
-        : '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(212, 175, 55, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+        ? '0 0 30px rgba(99, 102, 241, 0.5), 0 0 60px rgba(99, 102, 241, 0.2), inset 0 0 20px rgba(99, 102, 241, 0.1)'
+        : '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(99, 102, 241, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
       animation: animated ? 'avatarGlow 4s ease-in-out infinite' : 'none',
     }}>
       {/* Outer luxury ring */}
@@ -55,68 +56,107 @@ function SovereignAvatar({ size = 48, animated = true, pulse = false }) {
         position: 'absolute',
         inset: -2,
         borderRadius: '50%',
-        background: 'linear-gradient(135deg, #d4af37 0%, #f4e4bc 25%, #d4af37 50%, #aa8c2c 75%, #d4af37 100%)',
+        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 25%, #6366f1 50%, #4f46e5 75%, #6366f1 100%)',
         zIndex: -1,
         animation: animated ? 'ringRotate 8s linear infinite' : 'none',
       }} />
       
-      {/* Inner dark circle */}
+      {/* Inner circle background */}
       <div style={{
         position: 'absolute',
         inset: 2,
         borderRadius: '50%',
-        background: 'linear-gradient(145deg, #1a1a2e 0%, #0f0f23 100%)',
+        background: 'linear-gradient(145deg, #2c3e50 0%, #1a252f 100%)',
         boxShadow: 'inset 0 2px 10px rgba(0, 0, 0, 0.5)',
       }} />
       
-      {/* Shine effect */}
-      <div style={{
-        position: 'absolute',
-        top: '10%',
-        left: '15%',
-        width: '35%',
-        height: '25%',
-        borderRadius: '50%',
-        background: 'linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 100%)',
-        filter: 'blur(2px)',
-      }} />
-      
-      {/* Premium Crown/Diamond Icon */}
+      {/* Professional Executive Male Avatar (Mid-50s) */}
       <svg 
-        width={size * 0.5} 
-        height={size * 0.5} 
-        viewBox="0 0 24 24" 
+        width={size} 
+        height={size} 
+        viewBox="0 0 100 100" 
         fill="none" 
         xmlns="http://www.w3.org/2000/svg"
-        style={{ position: 'relative', zIndex: 1, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}
+        style={{ position: 'relative', zIndex: 1 }}
       >
-        {/* Premium S monogram with crown accent */}
         <defs>
-          <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#f4e4bc" />
-            <stop offset="50%" stopColor="#d4af37" />
-            <stop offset="100%" stopColor="#aa8c2c" />
+          {/* Skin tone gradient - professional, warm */}
+          <linearGradient id="skinTone" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#d4a574" />
+            <stop offset="100%" stopColor="#b8865f" />
           </linearGradient>
-          <linearGradient id="goldGradLight" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#fff9e6" />
-            <stop offset="50%" stopColor="#f4e4bc" />
-            <stop offset="100%" stopColor="#d4af37" />
+          {/* Hair gradient - salt and pepper gray */}
+          <linearGradient id="hairGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#6b7280" />
+            <stop offset="100%" stopColor="#4b5563" />
+          </linearGradient>
+          {/* Suit gradient - professional navy */}
+          <linearGradient id="suitGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#1e3a8a" />
+            <stop offset="100%" stopColor="#1e40af" />
+          </linearGradient>
+          {/* Shirt - crisp white */}
+          <linearGradient id="shirtGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="100%" stopColor="#f0f0f0" />
+          </linearGradient>
+          {/* Tie gradient - professional blue */}
+          <linearGradient id="tieGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="100%" stopColor="#2563eb" />
           </linearGradient>
         </defs>
-        {/* Crown top */}
-        <path d="M12 2L14 6L18 4L16 9H8L6 4L10 6L12 2Z" fill="url(#goldGradLight)" />
-        {/* Stylized S */}
+        
+        {/* Shoulders/Suit Jacket */}
+        <ellipse cx="50" cy="95" rx="42" ry="18" fill="url(#suitGrad)" />
+        
+        {/* Neck */}
+        <rect x="45" y="58" width="10" height="12" fill="url(#skinTone)" rx="2" />
+        
+        {/* Shirt collar */}
+        <path d="M42 70 L45 60 L50 62 L55 60 L58 70" fill="url(#shirtGrad)" />
+        
+        {/* Tie */}
+        <path d="M50 62 L48 70 L50 85 L52 70 Z" fill="url(#tieGrad)" />
+        
+        {/* Face - mature, distinguished oval */}
+        <ellipse cx="50" cy="45" rx="18" ry="22" fill="url(#skinTone)" />
+        
+        {/* Salt and pepper hair - professional cut, receding hairline (mid-50s) */}
         <path 
-          d="M15.5 10C15.5 10 14.5 9 12 9C9.5 9 8.5 10.5 8.5 11.5C8.5 12.5 9.5 13 12 13.5C14.5 14 15.5 14.5 15.5 16C15.5 17.5 14 19 12 19C10 19 8.5 18 8.5 18" 
-          stroke="url(#goldGrad)" 
-          strokeWidth="2" 
-          strokeLinecap="round"
-          fill="none"
+          d="M32 40 Q32 25 50 22 Q68 25 68 40 Q68 45 65 48 L60 46 Q58 42 50 42 Q42 42 40 46 L35 48 Q32 45 32 40 Z" 
+          fill="url(#hairGrad)" 
         />
-        {/* Diamond accents */}
-        <circle cx="6" cy="21" r="1.5" fill="url(#goldGradLight)" />
-        <circle cx="18" cy="21" r="1.5" fill="url(#goldGradLight)" />
-        <circle cx="12" cy="22" r="1" fill="url(#goldGrad)" />
+        {/* Receding temples */}
+        <ellipse cx="38" cy="35" rx="4" ry="6" fill="url(#skinTone)" opacity="0.4" />
+        <ellipse cx="62" cy="35" rx="4" ry="6" fill="url(#skinTone)" opacity="0.4" />
+        
+        {/* Eyebrows - mature, distinguished */}
+        <path d="M38 38 Q42 37 45 38" stroke="#5a5a5a" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+        <path d="M55 38 Q58 37 62 38" stroke="#5a5a5a" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+        
+        {/* Eyes - wise, confident */}
+        <ellipse cx="42" cy="43" rx="2.5" ry="3" fill="#2d3748" />
+        <ellipse cx="58" cy="43" rx="2.5" ry="3" fill="#2d3748" />
+        <circle cx="42.5" cy="42.5" r="0.8" fill="#ffffff" />
+        <circle cx="58.5" cy="42.5" r="0.8" fill="#ffffff" />
+        
+        {/* Nose - strong, masculine */}
+        <path d="M50 43 L50 50" stroke="#b8865f" strokeWidth="1" strokeLinecap="round" opacity="0.3" />
+        <ellipse cx="48" cy="51" rx="1.2" ry="1" fill="#b8865f" opacity="0.4" />
+        <ellipse cx="52" cy="51" rx="1.2" ry="1" fill="#b8865f" opacity="0.4" />
+        
+        {/* Smile lines/character (mid-50s) */}
+        <path d="M38 48 Q40 50 42 52" stroke="#b8865f" strokeWidth="0.5" strokeLinecap="round" opacity="0.3" fill="none" />
+        <path d="M62 48 Q60 50 58 52" stroke="#b8865f" strokeWidth="0.5" strokeLinecap="round" opacity="0.3" fill="none" />
+        
+        {/* Mouth - confident, warm smile */}
+        <path d="M43 55 Q50 58 57 55" stroke="#a0715d" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+        <path d="M44 55.5 Q50 57 56 55.5" stroke="#c08060" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.5" />
+        
+        {/* Subtle facial contour/jawline */}
+        <path d="M35 50 Q38 58 45 62" stroke="#b8865f" strokeWidth="0.5" opacity="0.2" fill="none" />
+        <path d="M65 50 Q62 58 55 62" stroke="#b8865f" strokeWidth="0.5" opacity="0.2" fill="none" />
       </svg>
       
       {/* Pulse ring for active state */}
@@ -126,14 +166,14 @@ function SovereignAvatar({ size = 48, animated = true, pulse = false }) {
             position: 'absolute',
             inset: -6,
             borderRadius: '50%',
-            border: '2px solid rgba(212, 175, 55, 0.6)',
+            border: '2px solid rgba(99, 102, 241, 0.6)',
             animation: 'pulseRing 2s ease-out infinite',
           }} />
           <div style={{
             position: 'absolute',
             inset: -12,
             borderRadius: '50%',
-            border: '1px solid rgba(212, 175, 55, 0.3)',
+            border: '1px solid rgba(99, 102, 241, 0.3)',
             animation: 'pulseRing 2s ease-out 0.5s infinite',
           }} />
         </>
