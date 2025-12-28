@@ -159,11 +159,11 @@ const BASE_UI = {
   adv3Badge2: '📈 95%+',
   adv3Badge3: '⏰ Omniscient',
   
-  adv4Title: 'Longevity Protocols',
-  adv4Desc: 'Extend human healthspan to 150+ years through cellular reprogramming, senescence reversal, regenerative medicine beyond current science.',
-  adv4Badge1: '🧬 150+ Years',
-  adv4Badge2: '🔄 Regenerate',
-  adv4Badge3: '⚕️ Immortality',
+  adv4Title: 'Predictive Healthcare Analytics',
+  adv4Desc: 'Advanced disease prediction, personalized treatment optimization, and breakthrough medical research support - accelerating clinical outcomes beyond current capabilities.',
+  adv4Badge1: '🧬 Precision',
+  adv4Badge2: '🔄 Personalized',
+  adv4Badge3: '⚕️ Clinical',
   
   adv5Title: 'Climate Mastery',
   adv5Desc: 'Reverse climate change with geoengineering, carbon capture, ecosystem restoration at planetary scale - solve the unsolvable.',
