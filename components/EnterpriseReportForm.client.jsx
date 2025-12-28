@@ -167,8 +167,17 @@ export default function EnterpriseReportForm({ verticalId, lang, ui, onReportGen
         }
       } catch (err) {
         console.error('[EnterpriseReportForm] Failed to fetch options:', err);
-        // Fallback to defaults if Airtable fails
-        setCountries(['United States', 'Canada', 'United Kingdom', 'Australia', 'Germany', 'France']);
+        // Fallback to comprehensive defaults if Airtable fails
+        setCountries([
+          'United States', 'Canada', 'United Kingdom', 'Australia', 'Germany', 'France',
+          'Japan', 'China', 'India', 'Brazil', 'Mexico', 'Italy', 'Spain', 'Netherlands',
+          'Sweden', 'Switzerland', 'Norway', 'Denmark', 'Finland', 'Belgium', 'Austria',
+          'Poland', 'Ireland', 'Portugal', 'Greece', 'Czech Republic', 'Romania', 'Hungary',
+          'New Zealand', 'Singapore', 'South Korea', 'Hong Kong', 'Taiwan', 'Malaysia',
+          'Thailand', 'Indonesia', 'Philippines', 'Vietnam', 'United Arab Emirates', 'Saudi Arabia',
+          'Israel', 'Turkey', 'Egypt', 'South Africa', 'Kenya', 'Nigeria', 'Argentina',
+          'Chile', 'Colombia', 'Peru', 'Venezuela', 'Ukraine', 'Russia', 'Kazakhstan'
+        ]);
         setCompanySizes(['1-50 employees', '51-200 employees', '201-500 employees', '501-1,000 employees', '1,001-5,000 employees', '5,001-10,000 employees']);
         setTimeFrames(['Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025', '6 Months', '12 Months', '18 Months', '24 Months']);
       } finally {
