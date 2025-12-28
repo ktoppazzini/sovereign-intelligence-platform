@@ -821,7 +821,28 @@ export default function HomePage() {
               fontSize: '28px',
               marginBottom: '20px',
               boxShadow: '0 8px 30px rgba(99, 102, 241, 0.4)',
-            }}>⚡</div>
+            }}>
+              <svg width="36" height="36" viewBox="0 0 100 100">
+                <defs>
+                  <linearGradient id="hairG1" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style={{stopColor: '#4a5568', stopOpacity: 1}} />
+                    <stop offset="100%" style={{stopColor: '#2d3748', stopOpacity: 1}} />
+                  </linearGradient>
+                  <linearGradient id="skinT1" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style={{stopColor: '#deb887', stopOpacity: 1}} />
+                    <stop offset="100%" style={{stopColor: '#cd9575', stopOpacity: 1}} />
+                  </linearGradient>
+                </defs>
+                <ellipse cx="50" cy="30" rx="22" ry="18" fill="url(#hairG1)" />
+                <ellipse cx="50" cy="48" rx="18" ry="20" fill="url(#skinT1)" />
+                <rect x="40" y="65" width="20" height="15" fill="#1e3a8a" rx="2" />
+                <rect x="42" y="67" width="16" height="11" fill="#ffffff" />
+                <polygon points="48,67 50,73 52,67" fill="#3b82f6" />
+                <ellipse cx="45" cy="50" rx="2" ry="3" fill="#2d3748" />
+                <ellipse cx="55" cy="50" rx="2" ry="3" fill="#2d3748" />
+                <path d="M 43 58 Q 50 62 57 58" stroke="#8b4513" strokeWidth="1.5" fill="none" />
+              </svg>
+            </div>
             <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>{ui.diff1Title}</h3>
             <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, marginBottom: '20px' }}>
               {ui.diff1Desc}
@@ -862,7 +883,28 @@ export default function HomePage() {
               fontSize: '28px',
               marginBottom: '20px',
               boxShadow: '0 8px 30px rgba(16, 185, 129, 0.4)',
-            }}>🎯</div>
+            }}>
+              <svg width="36" height="36" viewBox="0 0 100 100">
+                <defs>
+                  <linearGradient id="hairG2" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style={{stopColor: '#4a5568', stopOpacity: 1}} />
+                    <stop offset="100%" style={{stopColor: '#2d3748', stopOpacity: 1}} />
+                  </linearGradient>
+                  <linearGradient id="skinT2" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style={{stopColor: '#deb887', stopOpacity: 1}} />
+                    <stop offset="100%" style={{stopColor: '#cd9575', stopOpacity: 1}} />
+                  </linearGradient>
+                </defs>
+                <ellipse cx="50" cy="30" rx="22" ry="18" fill="url(#hairG2)" />
+                <ellipse cx="50" cy="48" rx="18" ry="20" fill="url(#skinT2)" />
+                <rect x="40" y="65" width="20" height="15" fill="#1e3a8a" rx="2" />
+                <rect x="42" y="67" width="16" height="11" fill="#ffffff" />
+                <polygon points="48,67 50,73 52,67" fill="#3b82f6" />
+                <ellipse cx="45" cy="50" rx="2" ry="3" fill="#2d3748" />
+                <ellipse cx="55" cy="50" rx="2" ry="3" fill="#2d3748" />
+                <path d="M 43 58 Q 50 62 57 58" stroke="#8b4513" strokeWidth="1.5" fill="none" />
+              </svg>
+            </div>
             <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>{ui.diff2Title}</h3>
             <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, marginBottom: '20px' }}>
               {ui.diff2Desc}
@@ -903,7 +945,28 @@ export default function HomePage() {
               fontSize: '28px',
               marginBottom: '20px',
               boxShadow: '0 8px 30px rgba(139, 92, 246, 0.4)',
-            }}>🧠</div>
+            }}>
+              <svg width="36" height="36" viewBox="0 0 100 100">
+                <defs>
+                  <linearGradient id="hairG3" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style={{stopColor: '#4a5568', stopOpacity: 1}} />
+                    <stop offset="100%" style={{stopColor: '#2d3748', stopOpacity: 1}} />
+                  </linearGradient>
+                  <linearGradient id="skinT3" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style={{stopColor: '#deb887', stopOpacity: 1}} />
+                    <stop offset="100%" style={{stopColor: '#cd9575', stopOpacity: 1}} />
+                  </linearGradient>
+                </defs>
+                <ellipse cx="50" cy="30" rx="22" ry="18" fill="url(#hairG3)" />
+                <ellipse cx="50" cy="48" rx="18" ry="20" fill="url(#skinT3)" />
+                <rect x="40" y="65" width="20" height="15" fill="#1e3a8a" rx="2" />
+                <rect x="42" y="67" width="16" height="11" fill="#ffffff" />
+                <polygon points="48,67 50,73 52,67" fill="#3b82f6" />
+                <ellipse cx="45" cy="50" rx="2" ry="3" fill="#2d3748" />
+                <ellipse cx="55" cy="50" rx="2" ry="3" fill="#2d3748" />
+                <path d="M 43 58 Q 50 62 57 58" stroke="#8b4513" strokeWidth="1.5" fill="none" />
+              </svg>
+            </div>
             <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>{ui.diff3Title}</h3>
             <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, marginBottom: '20px' }}>
               {ui.diff3Desc}
