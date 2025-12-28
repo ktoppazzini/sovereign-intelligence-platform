@@ -21,7 +21,7 @@ const BASE_UI = {
   announcementNew: 'NEW',
   announcementText: '207 Language Support Now Available',
   title: 'Intelligence That Executes',
-  subtitle: '10+ years ahead of any AI model. Sub-100ms MACH SPEED execution with zero drift, infinite memory, and flawless delivery. Self-replicates, orchestrates, and optimizes autonomously across 10 verticals, 207 languages.',
+  subtitle: '100+ years ahead of any AI model. Sub-100ms MACH SPEED execution with zero drift, infinite memory, and flawless delivery. Self-replicates, orchestrates, and optimizes autonomously across 10 verticals, 207 languages.',
   ctaPrimary: 'Start Free Trial',
   ctaSecondary: 'Watch Demo',
   trustedBy: 'Trusted by industry leaders worldwide',
@@ -93,15 +93,15 @@ const BASE_UI = {
   feature3Desc: 'Actually executes strategies with verification, audit trails, and rollback capability. Not just advice—results.',
   
   feature4Title: 'MACH SPEED Performance',
-  feature4Desc: 'Sub-100ms response initiation, <1ms cached retrieval, 10k LRU cache, parallel processing, streaming responses, 40% token compression, 3x batch throughput. Performance impossible for others for 10+ years.',
+  feature4Desc: 'Sub-100ms response initiation, <1ms cached retrieval, 10k LRU cache, parallel processing, streaming responses, 40% token compression, 3x batch throughput. Performance impossible for others for 100+ years.',
   
   feature5Title: '207 Languages',
   feature5Desc: 'Full enterprise capability in every major language with RTL support. Not translation—native intelligence.',
   
   // Why We're Different Section
-  whyDifferentBadge: '10+ YEARS AHEAD',
+  whyDifferentBadge: '100+ YEARS AHEAD',
   whyDifferentTitle: 'Technology That Doesn\'t Exist Yet',
-  whyDifferentSubtitle: 'Not incremental improvement. A fundamental leap that solves problems current AI cannot approach for the next decade.',
+  whyDifferentSubtitle: 'Not incremental improvement. A fundamental leap that solves problems current AI cannot approach for the next century.',
   
   // Differentiator Cards
   diff1Title: 'MACH SPEED Execution',
@@ -141,7 +141,7 @@ const BASE_UI = {
   diff6Badge3: '📚 Self-Learning',
   
   // Comparison Banner
-  comparisonTitle: '10+ Years Ahead of Any AI Model',
+  comparisonTitle: '100+ Years Ahead of Any AI Model',
   comparisonDesc: 'ChatGPT/Claude chat and advise. Copilot suggests code. Sovereign executes strategies flawlessly, self-replicates for parallel orchestration, optimizes in real-time, and delivers enterprise transformation autonomously at MACH SPEED.',
   comparisonCta: 'Experience the Future Now',
   
