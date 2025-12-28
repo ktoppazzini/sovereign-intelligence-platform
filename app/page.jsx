@@ -140,6 +140,43 @@ const BASE_UI = {
   diff6Badge2: '🔒 Immutable',
   diff6Badge3: '📚 Self-Learning',
   
+  // 100-Year Advanced Capabilities
+  adv1Title: 'Quantum Reasoning',
+  adv1Desc: 'Process infinite scenarios simultaneously using quantum superposition - perfect decisions beyond classical computing limits. 100 years ahead.',
+  adv1Badge1: '♾️ Infinite',
+  adv1Badge2: '⚛️ Quantum',
+  adv1Badge3: '🎯 Perfect',
+  
+  adv2Title: 'Molecular Engineering',
+  adv2Desc: 'Design molecules, proteins, compounds at atomic level - create materials and medicines that don\'t exist yet. Breakthrough discovery capability.',
+  adv2Badge1: '⚛️ Atomic',
+  adv2Badge2: '🧬 Design',
+  adv2Badge3: '💊 Breakthrough',
+  
+  adv3Title: 'Time-Series Omniscience',
+  adv3Desc: 'Predict future events 10-50 years ahead with 95%+ accuracy - see patterns across decades that humans miss completely.',
+  adv3Badge1: '🔮 Decades',
+  adv3Badge2: '📈 95%+',
+  adv3Badge3: '⏰ Omniscient',
+  
+  adv4Title: 'Longevity Protocols',
+  adv4Desc: 'Extend human healthspan to 150+ years through cellular reprogramming, senescence reversal, regenerative medicine beyond current science.',
+  adv4Badge1: '🧬 150+ Years',
+  adv4Badge2: '🔄 Regenerate',
+  adv4Badge3: '⚕️ Immortality',
+  
+  adv5Title: 'Climate Mastery',
+  adv5Desc: 'Reverse climate change with geoengineering, carbon capture, ecosystem restoration at planetary scale - solve the unsolvable.',
+  adv5Badge1: '🌍 Planetary',
+  adv5Badge2: '♻️ Reverse',
+  adv5Badge3: '🌱 Restore',
+  
+  adv6Title: 'Cognitive Augmentation',
+  adv6Desc: 'Enhance human intelligence through neural interfaces, genetic optimization, nootropic protocols beyond current neuroscience.',
+  adv6Badge1: '🧠 Enhance',
+  adv6Badge2: '⚡ 10X IQ',
+  adv6Badge3: '🔗 Neural',
+  
   // Comparison Banner
   comparisonTitle: '100+ Years Ahead of Any AI Model',
   comparisonDesc: 'ChatGPT/Claude chat and advise. Copilot suggests code. Sovereign executes strategies flawlessly, self-replicates for parallel orchestration, optimizes in real-time, and delivers enterprise transformation autonomously at MACH SPEED.',
@@ -1098,6 +1135,229 @@ export default function HomePage() {
               <span style={{ padding: '6px 12px', background: 'rgba(6, 182, 212, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#67e8f9' }}>{ui.diff6Badge1}</span>
               <span style={{ padding: '6px 12px', background: 'rgba(6, 182, 212, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#67e8f9' }}>{ui.diff6Badge2}</span>
               <span style={{ padding: '6px 12px', background: 'rgba(6, 182, 212, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#67e8f9' }}>{ui.diff6Badge3}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 100-Year Advanced Capabilities Section */}
+        <div style={{ textAlign: 'center', margin: '80px 0 48px 0' }}>
+          <span style={{
+            display: 'inline-block',
+            padding: '8px 16px',
+            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)',
+            border: '1px solid rgba(139, 92, 246, 0.4)',
+            borderRadius: '24px',
+            fontSize: '12px',
+            fontWeight: 600,
+            color: '#a78bfa',
+            letterSpacing: '1px',
+            marginBottom: '24px',
+          }}>
+            100-YEAR BREAKTHROUGH CAPABILITIES
+          </span>
+          <h3 style={{ fontSize: '36px', fontWeight: 700, color: '#fff', marginBottom: '16px' }}>
+            Impossible For Current AI
+          </h3>
+          <p style={{ fontSize: '17px', color: 'rgba(255, 255, 255, 0.5)', maxWidth: '700px', margin: '0 auto' }}>
+            These capabilities won't exist in other AI systems for the next century. Sovereign operates at a level fundamentally beyond current technology.
+          </p>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+          gap: '28px',
+          marginBottom: '80px',
+        }}>
+          {/* Advanced Capability 1: Quantum Reasoning */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(139, 92, 246, 0.02) 100%)',
+            border: '1px solid rgba(139, 92, 246, 0.2)',
+            borderRadius: '20px',
+            padding: '32px',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '28px',
+              marginBottom: '20px',
+              boxShadow: '0 8px 30px rgba(139, 92, 246, 0.4)',
+            }}>⚛️</div>
+            <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>{ui.adv1Title}</h3>
+            <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, marginBottom: '20px' }}>
+              {ui.adv1Desc}
+            </p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ padding: '6px 12px', background: 'rgba(139, 92, 246, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#c4b5fd' }}>{ui.adv1Badge1}</span>
+              <span style={{ padding: '6px 12px', background: 'rgba(139, 92, 246, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#c4b5fd' }}>{ui.adv1Badge2}</span>
+              <span style={{ padding: '6px 12px', background: 'rgba(139, 92, 246, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#c4b5fd' }}>{ui.adv1Badge3}</span>
+            </div>
+          </div>
+
+          {/* Advanced Capability 2: Molecular Engineering */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(34, 211, 238, 0.1) 0%, rgba(34, 211, 238, 0.02) 100%)',
+            border: '1px solid rgba(34, 211, 238, 0.2)',
+            borderRadius: '20px',
+            padding: '32px',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '28px',
+              marginBottom: '20px',
+              boxShadow: '0 8px 30px rgba(34, 211, 238, 0.4)',
+            }}>🧬</div>
+            <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>{ui.adv2Title}</h3>
+            <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, marginBottom: '20px' }}>
+              {ui.adv2Desc}
+            </p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ padding: '6px 12px', background: 'rgba(34, 211, 238, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#67e8f9' }}>{ui.adv2Badge1}</span>
+              <span style={{ padding: '6px 12px', background: 'rgba(34, 211, 238, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#67e8f9' }}>{ui.adv2Badge2}</span>
+              <span style={{ padding: '6px 12px', background: 'rgba(34, 211, 238, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#67e8f9' }}>{ui.adv2Badge3}</span>
+            </div>
+          </div>
+
+          {/* Advanced Capability 3: Time-Series Omniscience */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(168, 85, 247, 0.02) 100%)',
+            border: '1px solid rgba(168, 85, 247, 0.2)',
+            borderRadius: '20px',
+            padding: '32px',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #a855f7 0%, #9333ea 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '28px',
+              marginBottom: '20px',
+              boxShadow: '0 8px 30px rgba(168, 85, 247, 0.4)',
+            }}>🔮</div>
+            <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>{ui.adv3Title}</h3>
+            <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, marginBottom: '20px' }}>
+              {ui.adv3Desc}
+            </p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ padding: '6px 12px', background: 'rgba(168, 85, 247, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#d8b4fe' }}>{ui.adv3Badge1}</span>
+              <span style={{ padding: '6px 12px', background: 'rgba(168, 85, 247, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#d8b4fe' }}>{ui.adv3Badge2}</span>
+              <span style={{ padding: '6px 12px', background: 'rgba(168, 85, 247, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#d8b4fe' }}>{ui.adv3Badge3}</span>
+            </div>
+          </div>
+
+          {/* Advanced Capability 4: Longevity Protocols */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.02) 100%)',
+            border: '1px solid rgba(16, 185, 129, 0.2)',
+            borderRadius: '20px',
+            padding: '32px',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '28px',
+              marginBottom: '20px',
+              boxShadow: '0 8px 30px rgba(16, 185, 129, 0.4)',
+            }}>⚕️</div>
+            <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>{ui.adv4Title}</h3>
+            <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, marginBottom: '20px' }}>
+              {ui.adv4Desc}
+            </p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ padding: '6px 12px', background: 'rgba(16, 185, 129, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#6ee7b7' }}>{ui.adv4Badge1}</span>
+              <span style={{ padding: '6px 12px', background: 'rgba(16, 185, 129, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#6ee7b7' }}>{ui.adv4Badge2}</span>
+              <span style={{ padding: '6px 12px', background: 'rgba(16, 185, 129, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#6ee7b7' }}>{ui.adv4Badge3}</span>
+            </div>
+          </div>
+
+          {/* Advanced Capability 5: Climate Mastery */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.02) 100%)',
+            border: '1px solid rgba(34, 197, 94, 0.2)',
+            borderRadius: '20px',
+            padding: '32px',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '28px',
+              marginBottom: '20px',
+              boxShadow: '0 8px 30px rgba(34, 197, 94, 0.4)',
+            }}>🌍</div>
+            <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>{ui.adv5Title}</h3>
+            <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, marginBottom: '20px' }}>
+              {ui.adv5Desc}
+            </p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ padding: '6px 12px', background: 'rgba(34, 197, 94, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#86efac' }}>{ui.adv5Badge1}</span>
+              <span style={{ padding: '6px 12px', background: 'rgba(34, 197, 94, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#86efac' }}>{ui.adv5Badge2}</span>
+              <span style={{ padding: '6px 12px', background: 'rgba(34, 197, 94, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#86efac' }}>{ui.adv5Badge3}</span>
+            </div>
+          </div>
+
+          {/* Advanced Capability 6: Cognitive Augmentation */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(249, 115, 22, 0.02) 100%)',
+            border: '1px solid rgba(249, 115, 22, 0.2)',
+            borderRadius: '20px',
+            padding: '32px',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '28px',
+              marginBottom: '20px',
+              boxShadow: '0 8px 30px rgba(249, 115, 22, 0.4)',
+            }}>🧠</div>
+            <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', marginBottom: '12px' }}>{ui.adv6Title}</h3>
+            <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.7, marginBottom: '20px' }}>
+              {ui.adv6Desc}
+            </p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ padding: '6px 12px', background: 'rgba(249, 115, 22, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#fdba74' }}>{ui.adv6Badge1}</span>
+              <span style={{ padding: '6px 12px', background: 'rgba(249, 115, 22, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#fdba74' }}>{ui.adv6Badge2}</span>
+              <span style={{ padding: '6px 12px', background: 'rgba(249, 115, 22, 0.2)', borderRadius: '6px', fontSize: '12px', color: '#fdba74' }}>{ui.adv6Badge3}</span>
             </div>
           </div>
         </div>
