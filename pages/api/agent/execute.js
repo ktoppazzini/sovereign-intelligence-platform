@@ -26,7 +26,6 @@ import { profileManager, CORE_IDENTITY } from '../../../lib/agentProfile';
 import { executionEngine, EXECUTION_STATUS } from '../../../lib/executionEngine';
 import { getVerticalActions } from '../../../lib/verticalExecutionRegistries';
 import SovereignAI from '../../../lib/ai/sovereignAI';
-import { ensureTranslatedResponse } from '../../../lib/dynamicTranslation';
 
 // [SR:EXECUTE-SHIM] OpenAI compatibility shim that routes through SovereignAI for full self-learning
 const openai = {
