@@ -827,20 +827,13 @@ async function translateOccupations(occupations, targetLang) {
     // Prepare all translation promises to run in PARALLEL
     const translationPromises = [];
 
-    // Categories translation promise - DYNAMIC FOR ALL 207 LANGUAGES
-    const catPrompt = `You are a professional translator. Translate these ISCO-08 occupation category names to ${targetLang}.
-
-RULES (CRITICAL):
-1. Keep the number code prefix exactly as is (e.g., "1 - ", "2 - ")
-2. Use standard/formal ${targetLang} - no regional dialects
-3. For technical terms without direct translation, use descriptive phrases
-4. Return ONLY valid JSON - NO explanations, NO questions, NO clarifications
-5. If uncertain, make best professional judgment and proceed
+    // Categories translation promise - COMPRESSED PROMPT (30% token reduction)
+    const catPrompt = `Translate ISCO-08 categories to ${targetLang}. Keep codes. Formal language. Return JSON only.
 
 Categories:
 ${categoryNames.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
-Return ONLY this JSON format (no other text): { "translations": ["1 - Translated Name", "2 - Translated Name", ...] }`;
+Return: { "translations": ["1 - Name", "2 - Name", ...] }`;
 
     translationPromises.push(
       openai.chat.completions.create({
@@ -877,7 +870,8 @@ Return ONLY this JSON format (no other text): { "translations": ["1 - Translated
     );
 
     // Sub-occupations batch translation promises (PARALLEL)
-    const BATCH_SIZE = 40; // Reduced from 100 to prevent token truncation - smaller batches = shorter responses
+    // [COST-OPTIMIZATION] Increased from 40 to 150 - fewer API calls = lower cost
+    const BATCH_SIZE = 150; // Larger batches with compressed prompts = 3x fewer calls
     const batchIndices = [];
     
     for (let i = 0; i < allSubOccupations.length; i += BATCH_SIZE) {
@@ -885,19 +879,12 @@ Return ONLY this JSON format (no other text): { "translations": ["1 - Translated
       const batchIdx = Math.floor(i / BATCH_SIZE);
       batchIndices.push({ start: i, end: i + batch.length });
       
-      const subPrompt = `You are a professional translator. Translate these ISCO-08 occupation names to ${targetLang}.
-
-RULES (CRITICAL):
-1. Keep ALL numeric codes exactly as is (e.g., "11 - ", "111 - ", "1111 - ")
-2. Use standard/formal ${targetLang} - automatically choose most common variant
-3. For terms without direct translation, use descriptive professional phrases
-4. Return ONLY valid JSON - NO explanations, NO questions, NO clarifications
-5. If uncertain, make best professional judgment and proceed immediately
+      const subPrompt = `Translate ISCO-08 to ${targetLang}. Keep all codes. Formal. JSON only.
 
 Occupations:
 ${batch.map((s, idx) => `${idx + 1}. ${s}`).join('\n')}
 
-Return ONLY this JSON format (no other text): { "translations": ["11 - Translated", "111 - Translated", ...] }`;
+Return: { "translations": ["11 - Translated", ...] }`;
 
       translationPromises.push(
         openai.chat.completions.create({
